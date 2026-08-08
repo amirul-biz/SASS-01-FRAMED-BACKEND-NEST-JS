@@ -2,116 +2,125 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+<p align="center">Framed API &mdash; a <a href="http://nodejs.org" target="_blank">NestJS</a> backend using Prisma (PostgreSQL) and Firebase Authentication.</p>
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Framed's backend API. Built with [NestJS](https://nestjs.com), [Prisma](https://www.prisma.io) for data access, and [Firebase Admin](https://firebase.google.com/docs/admin/setup) for authentication (currently: photographer registration).
 
-## Getting Started
+## Prerequisites
 
-Follow these steps to get the application running locally:
+- [Node.js](https://nodejs.org/) (LTS) and npm
+- A PostgreSQL database (e.g. [Supabase](https://supabase.com), or any Postgres instance)
+- A Firebase project with a service account key
 
-1. **Prerequisites**
+## 1. Install dependencies
 
-   Make sure you have [Node.js](https://nodejs.org/) (LTS) and npm installed.
+```bash
+npm install
+```
 
-2. **Navigate to the project directory**
+## 2. Configure environment variables
 
-   ```bash
-   $ cd framed
-   ```
+Copy the example file and fill in your own values:
 
-3. **Install dependencies**
+```bash
+cp .env.example .env
+```
 
-   ```bash
-   $ npm install
-   ```
+| Variable | Description |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://USER:PASSWORD@HOST:5432/DATABASE`. Used by Prisma ([prisma/schema.prisma](prisma/schema.prisma), [prisma.config.ts](prisma.config.ts)). |
+| `FIREBASE_PROJECT_ID` | Firebase project ID. |
+| `FIREBASE_CLIENT_EMAIL` | Service account client email. |
+| `FIREBASE_PRIVATE_KEY` | Service account private key, with `\n` line breaks kept literal (don't replace them with real newlines in the `.env` file). |
+| `PORT` | Optional. Port the app listens on (defaults to `3001`, see [src/main.ts](src/main.ts)). |
 
-4. **Run the app**
+To get the Firebase values: Firebase Console → Project Settings → Service Accounts → **Generate new private key**. This downloads a JSON file containing `project_id`, `client_email`, and `private_key` — map those directly to the env vars above.
 
-   ```bash
-   # development
-   $ npm run start
+`DATABASE_URL`, `FIREBASE_PROJECT_ID`, and `FIREBASE_CLIENT_EMAIL` are read via [`ConfigModule.forRoot({ isGlobal: true })`](src/app.module.ts), so `.env` is loaded automatically on boot — no extra setup needed once the file exists.
 
-   # watch mode (recommended during development)
-   $ npm run start:dev
+If the Authentication product has never been enabled on your Firebase project, `createUser` calls will fail with `auth/configuration-not-found`. Enable it once via Firebase Console → Build → Authentication → **Get started** → enable the **Email/Password** sign-in method.
 
-   # production mode (build first, then run the compiled output)
-   $ npm run build
-   $ npm run start:prod
-   ```
+## 3. Set up the database with Prisma
 
-5. **Verify it's running**
+Generate the Prisma client and apply migrations against your `DATABASE_URL`:
 
-   The app listens on `http://localhost:3000` by default. Swagger API docs are available at [http://localhost:3000/api](http://localhost:3000/api).
+```bash
+# generate the Prisma client (outputs to /generated, gitignored)
+npx prisma generate
+
+# apply existing migrations to your database
+npx prisma migrate deploy
+
+# (development only) create a new migration after changing prisma/schema.prisma
+npx prisma migrate dev --name <migration_name>
+
+# inspect your data
+npx prisma studio
+```
+
+The schema lives in [prisma/schema.prisma](prisma/schema.prisma): `User`, `UserPlatform`, `PhotographerProfile`, and `AdminProfile` models backing photographer registration.
+
+## 4. Run the app
+
+```bash
+# development
+npm run start
+
+# watch mode (recommended during development)
+npm run start:dev
+
+# webpack + hot module reload
+npm run start-hot-reload
+
+# production mode (build first, then run the compiled output)
+npm run build
+npm run start:prod
+```
+
+## 5. Verify it's running
+
+The app listens on `http://localhost:3001` by default (or `PORT` if set). Swagger API docs are available at [http://localhost:3001/api](http://localhost:3001/api).
+
+Try the photographer registration endpoint:
+
+```bash
+curl -X POST http://localhost:3001/photographer/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"jane.doe@example.com","password":"securePass123","name":"Jane Doe"}'
+```
 
 ## Run tests
 
 ```bash
 # unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
+npm run test
 
 # test coverage
-$ npm run test:cov
+npm run test:cov
 ```
 
-## Deployment
+## Project structure
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+src/
+  config/
+    database/     # PrismaService / PrismaModule
+    firebase/      # FirebaseService / FirebaseModule (Admin SDK init)
+  photographer/    # POST /photographer/register
+  sample/          # example CRUD module scaffold
+prisma/
+  schema.prisma    # data models
+  migrations/      # SQL migrations
+```
 
 ## Resources
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- [NestJS Documentation](https://docs.nestjs.com)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Firebase Admin SDK Setup](https://firebase.google.com/docs/admin/setup)
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED (private project).

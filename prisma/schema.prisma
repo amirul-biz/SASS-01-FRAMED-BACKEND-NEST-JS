@@ -1,0 +1,66 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated"
+  moduleFormat = "commonjs"
+}
+
+enum UserRole {
+  PHOTOGRAPHER
+  ADMIN
+
+  @@map("user_role")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  firebaseId    String         @unique @map("firebase_id")
+  email         String         @unique
+  createdAt     DateTime       @default(now()) @map("created_at")
+  userPlatforms UserPlatform[]
+
+  @@map("users")
+}
+
+model UserPlatform {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      UserRole
+  createdAt DateTime @default(now()) @map("created_at")
+
+  photographerProfile PhotographerProfile?
+  adminProfile        AdminProfile?
+
+  @@unique([userId, role])
+  @@index([userId], map: "idx_user_platforms_user")
+  @@map("user_platforms")
+}
+
+model PhotographerProfile {
+  id             String       @id @default(uuid())
+  userPlatformId String       @unique @map("user_platform_id")
+  userPlatform   UserPlatform @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
+  name           String
+  bio            String?
+  companyName    String?      @map("company_name")
+  phone          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("photographer_profiles")
+}
+
+model AdminProfile {
+  id             String       @id @default(uuid())
+  userPlatformId String       @unique @map("user_platform_id")
+  userPlatform   UserPlatform @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
+  name           String
+  permissions    Json         @default("[]")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("admin_profiles")
+}

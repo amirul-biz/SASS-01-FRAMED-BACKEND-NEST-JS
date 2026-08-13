@@ -64,3 +64,65 @@ model AdminProfile {
 
   @@map("admin_profiles")
 }
+
+// ############################################################
+model PricingOption {
+  id  String  @id @default(uuid())
+  photographerId  String @map("photographer_id")
+  label String
+  price Decimal @db.Decimal(10,2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt  @map("updated_at")
+
+  @@index([photographerId], map: "idx_pricing_options_photographer")
+  @@map("pricing_options")
+}
+
+enum BundleModel {
+  FLAT_TIER
+  PERCENT_TIER
+  NONE
+
+  @@map("bundle_model")
+}
+
+model PricingBundle {
+  id  String  @id @default(uuid())
+  photographerId  String  @map("photographer_id")
+  name  String
+  basePrice Decimal @db.Decimal(10,2) @map("base_price")
+  bundleModel BundleModel @map("bundle_model")
+  bundleTiers Json  @map("bundle_tiers")
+  fullGalleryEnabled  Boolean @default(false) @map("full_gallery_enabled")
+  fullGalleryPrice  Decimal @default(0) @db.Decimal(10,2) @map("full_gallery_price")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt  @map("updated_at")
+
+  events EventPricingBundle[]
+
+  @@index([photographerId], map: "idx_pricing_bundles_photographer")
+  @@map("pricing_bundles")
+}
+
+model Event {
+  id String @id @default(uuid())
+  photographerId String @map("photographer_id")
+  name  String 
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  pricingBundles EventPricingBundle[]
+
+  @@map("events")
+}
+
+model EventPricingBundle {
+  eventId String @map("event_id")
+  pricingBundleId String @map("pricing_bundle_id")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  pricingBundle PricingBundle @relation(fields: [pricingBundleId], references: [id], onDelete: Restrict)
+
+  @@id([eventId, pricingBundleId])
+  @@map("event_pricing_bundles")
+}
+

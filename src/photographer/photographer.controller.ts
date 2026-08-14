@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Logger,
+  Patch,
   Post,
   UploadedFiles,
   UseGuards,
@@ -12,16 +14,20 @@ import {
 } from '@nestjs/common';
 import { type Express } from 'express';
 import {
+  PhotographerProfileResponseDto,
   RegisterPhotographerInputDto,
   RegisterPhotographerOutputDto,
+  UpdatePhotographerProfileDto,
 } from './photographer.dto';
 import { PhotographerService } from './photographer.service';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { FirebaseAuthGuard } from 'src/common/guards/firebase-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { UserRole } from '../../generated/prisma/enums';
+import type { User, UserPlatform } from '../../generated/prisma/client';
 
 @Controller('photographer')
 export class PhotographerController {
@@ -64,5 +70,27 @@ export class PhotographerController {
     });
 
     return { accepted: true, fileCount: files.length };
+  }
+
+  @Get('profile')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  async getMyProfile(
+    @CurrentUser() user: User & { userPlatforms: UserPlatform[] },
+  ): Promise<PhotographerProfileResponseDto> {
+    return await this.photographerService.getMyProfile(user);
+  }
+
+  @Patch('profile')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async updateMyProfile(
+    @CurrentUser() user: User & { userPlatforms: UserPlatform[] },
+    @Body() dto: UpdatePhotographerProfileDto,
+  ): Promise<PhotographerProfileResponseDto> {
+    return await this.photographerService.updateMyProfile(user, dto);
   }
 }

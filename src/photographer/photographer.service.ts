@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { FirebaseService } from '../config/firebase/firebase.service';
@@ -8,11 +14,16 @@ import {
   UPLOAD_ATTACHMENT_QUEUE_CLIENT,
 } from '../config/queue/attachment-queue.constants';
 import { AttachmentUploadedEvent } from '../config/queue/attachment-uploaded.event';
+import type { User, UserPlatform } from '../../generated/prisma/client';
 import {
+  PhotographerProfileResponseDto,
   RegisterPhotographerInputDto,
   RegisterPhotographerOutputDto,
+  UpdatePhotographerProfileDto,
 } from './photographer.dto';
 import { PhotographerRepository } from './photographer.repository';
+
+type AuthenticatedUser = User & { userPlatforms: UserPlatform[] };
 
 @Injectable()
 export class PhotographerService {
@@ -95,5 +106,44 @@ export class PhotographerService {
     await firstValueFrom(
       this.attachmentQueueClient.emit(ATTACHMENT_UPLOADED_EVENT_PATTERN, event),
     );
+  }
+
+  async getMyProfile(
+    user: AuthenticatedUser,
+  ): Promise<PhotographerProfileResponseDto> {
+    const userPlatformId = this.getOwnPhotographerPlatformId(user);
+    const profile =
+      await this.photographerRepository.findProfileByUserPlatformId(
+        userPlatformId,
+      );
+
+    if (!profile) {
+      throw new NotFoundException('Photographer profile not found');
+    }
+
+    return profile;
+  }
+
+  async updateMyProfile(
+    user: AuthenticatedUser,
+    dto: UpdatePhotographerProfileDto,
+  ): Promise<PhotographerProfileResponseDto> {
+    const userPlatformId = this.getOwnPhotographerPlatformId(user);
+    return await this.photographerRepository.updateProfileByUserPlatformId(
+      userPlatformId,
+      dto,
+    );
+  }
+
+  private getOwnPhotographerPlatformId(user: AuthenticatedUser): string {
+    const photographerPlatform = user.userPlatforms.find(
+      (platform) => platform.role === 'PHOTOGRAPHER',
+    );
+
+    if (!photographerPlatform) {
+      throw new NotFoundException('Photographer profile not found');
+    }
+
+    return photographerPlatform.id;
   }
 }

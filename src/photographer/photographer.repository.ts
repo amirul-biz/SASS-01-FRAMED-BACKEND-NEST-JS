@@ -41,4 +41,34 @@ export class PhotographerRepository {
       return { user, userPlatform, photographerProfile };
     });
   }
+
+  async findProfileByUserPlatformId(userPlatformId: string) {
+    return await this.prisma.photographerProfile.findUnique({
+      where: { userPlatformId },
+    });
+  }
+
+  async updateProfileByUserPlatformId(
+    userPlatformId: string,
+    data: {
+      name?: string;
+      bio?: string;
+      companyName?: string;
+      phone?: string;
+      contactNo?: string;
+    },
+  ) {
+    return await this.prisma.photographerProfile.update({
+      where: { userPlatformId },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.bio !== undefined && { bio: data.bio }),
+        ...(data.companyName !== undefined && {
+          companyName: data.companyName,
+        }),
+        ...(data.phone !== undefined && { phone: data.phone }),
+        ...(data.contactNo !== undefined && { contactNo: data.contactNo }),
+      },
+    });
+  }
 }

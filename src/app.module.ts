@@ -2,11 +2,21 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SampleModule } from './sample/sample.module';
+import { CommonModule } from './common/common.module';
+import { FirebaseModule } from './config/firebase/firebase.module';
 import { PhotographerModule } from './photographer/photographer.module';
+import { SampleModule } from './sample/sample.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), SampleModule, PhotographerModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    FirebaseModule,
+    CommonModule,
+    SampleModule,
+    PhotographerModule,
+    UsersModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

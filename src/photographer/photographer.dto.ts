@@ -112,3 +112,6 @@ export class RegisterPhotographerOutputDto {
   @Type(() => RegisterPhotographerDataDto)
   data!: RegisterPhotographerDataDto;
 }
+
+
+

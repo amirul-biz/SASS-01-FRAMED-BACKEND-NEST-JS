@@ -14,7 +14,8 @@ import {
   UPLOAD_ATTACHMENT_QUEUE_CLIENT,
 } from '../config/queue/attachment-queue.constants';
 import { AttachmentUploadedEvent } from '../config/queue/attachment-uploaded.event';
-import type { User, UserPlatform } from '../../generated/prisma/client';
+import { UserRole } from '../../generated/prisma/enums';
+import type { AuthenticatedUser } from '../types/express';
 import {
   PhotographerProfileResponseDto,
   RegisterPhotographerInputDto,
@@ -22,8 +23,6 @@ import {
   UpdatePhotographerProfileDto,
 } from './photographer.dto';
 import { PhotographerRepository } from './photographer.repository';
-
-type AuthenticatedUser = User & { userPlatforms: UserPlatform[] };
 
 @Injectable()
 export class PhotographerService {
@@ -137,7 +136,7 @@ export class PhotographerService {
 
   private getOwnPhotographerPlatformId(user: AuthenticatedUser): string {
     const photographerPlatform = user.userPlatforms.find(
-      (platform) => platform.role === 'PHOTOGRAPHER',
+      (platform) => platform.role === UserRole.PHOTOGRAPHER,
     );
 
     if (!photographerPlatform) {

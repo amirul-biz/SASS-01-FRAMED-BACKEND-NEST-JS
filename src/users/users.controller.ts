@@ -2,7 +2,7 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { FirebaseAuthGuard } from 'src/common/guards/firebase-auth.guard';
-import type { User, UserPlatform } from '../../generated/prisma/client';
+import type { AuthenticatedUser } from '../types/express';
 import { CurrentUserResponseDto } from './users.dto';
 
 @ApiTags('users')
@@ -12,7 +12,7 @@ export class UsersController {
   @Get('current-user')
   @UseGuards(FirebaseAuthGuard)
   getCurrentUser(
-    @CurrentUser() user: User & { userPlatforms: UserPlatform[] },
+    @CurrentUser() user: AuthenticatedUser,
   ): CurrentUserResponseDto {
     return {
       id: user.id,

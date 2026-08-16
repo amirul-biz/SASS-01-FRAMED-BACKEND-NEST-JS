@@ -15,6 +15,17 @@ enum UserRole {
   @@map("user_role")
 }
 
+enum EventCategory {
+  CYCLING
+  RUNNING
+  SWIMMING
+  TRIATHLON
+  MOTORSPORT
+  OTHER
+
+  @@map("event_category")
+}
+
 model User {
   id            String         @id @default(uuid())
   firebaseId    String         @unique @map("firebase_id")
@@ -41,19 +52,43 @@ model UserPlatform {
 }
 
 model PhotographerProfile {
-  id             String       @id @default(uuid())
-  userPlatformId String       @unique @map("user_platform_id")
-  userPlatform   UserPlatform @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
-  name           String
-  bio            String?
-  companyName    String?      @map("company_name")
-  phone          String?
-  contactNo      String?      @map("contact_no")
-  profileImageUrl String?     @map("profile_image_url")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  id              String       @id @default(uuid())
+  userPlatformId  String       @unique @map("user_platform_id")
+  userPlatform    UserPlatform @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
+  name            String
+  bio             String?
+  companyName     String?      @map("company_name")
+  phone           String?
+  contactNo       String?      @map("contact_no")
+  profileImageUrl String?      @map("profile_image_url")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  events Event[]
 
   @@map("photographer_profiles")
+}
+
+model Event {
+  id                  String              @id @default(uuid())
+  photographerId      String              @map("photographer_id")
+  photographerProfile PhotographerProfile @relation(fields: [photographerId], references: [id], onDelete: Cascade)
+  title               String              @db.VarChar(255)
+  description         String?
+  category            EventCategory
+  location            String?             @db.VarChar(255)
+  eventStartDate      DateTime            @map("event_start_date") @db.Timestamptz(6)
+  eventEndDate        DateTime            @map("event_end_date") @db.Timestamptz(6)
+  isPublished         Boolean             @default(false) @map("is_published")
+  publishedAt         DateTime?           @map("published_at") @db.Timestamptz(6)
+  coverPhotoUrl       String?             @map("cover_photo_url")
+  deletedAt           DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([photographerId], map: "idx_events_photographer")
+  @@index([isPublished, eventStartDate(sort: Desc)], map: "idx_events_published")
+  @@map("events")
 }
 
 model AdminProfile {

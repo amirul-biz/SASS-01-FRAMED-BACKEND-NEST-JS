@@ -11,5 +11,6 @@ import { PhotographerRepository } from './photographer.repository';
   imports: [FirebaseModule, PrismaModule, StorageModule, AttachmentQueueModule],
   controllers: [PhotographerController],
   providers: [PhotographerService, PhotographerRepository],
+  exports: [PhotographerService],
 })
 export class PhotographerModule {}

@@ -44,7 +44,7 @@ export class PhotographerRepository {
     });
   }
 
-  async findProfileByUserPlatformId(
+  async getProfileByUserPlatformId(
     userPlatformId: string,
   ): Promise<PhotographerProfile | null> {
     return await this.prisma.photographerProfile.findUnique({

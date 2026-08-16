@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CommonModule } from './common/common.module';
 import { FirebaseModule } from './config/firebase/firebase.module';
+import { EventModule } from './event/event.module';
 import { PhotographerModule } from './photographer/photographer.module';
 import { SampleModule } from './sample/sample.module';
 import { UsersModule } from './users/users.module';
@@ -15,6 +16,7 @@ import { UsersModule } from './users/users.module';
     CommonModule,
     SampleModule,
     PhotographerModule,
+    EventModule,
     UsersModule,
   ],
   controllers: [AppController],

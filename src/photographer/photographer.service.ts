@@ -115,7 +115,7 @@ export class PhotographerService {
   ): Promise<PhotographerProfileResponseDto> {
     const userPlatformId = this.getOwnPhotographerPlatformId(user);
     const profile =
-      await this.photographerRepository.findProfileByUserPlatformId(
+      await this.photographerRepository.getProfileByUserPlatformId(
         userPlatformId,
       );
 
@@ -160,6 +160,20 @@ export class PhotographerService {
     const publicUrl = this.storageService.buildPublicUrl(key);
 
     return { uploadUrl, publicUrl, key, expiresIn };
+  }
+
+  async getOwnPhotographerProfileId(user: AuthenticatedUser): Promise<string> {
+    const userPlatformId = this.getOwnPhotographerPlatformId(user);
+    const profile =
+      await this.photographerRepository.getProfileByUserPlatformId(
+        userPlatformId,
+      );
+
+    if (!profile) {
+      throw new NotFoundException('Photographer profile not found');
+    }
+
+    return profile.id;
   }
 
   private getOwnPhotographerPlatformId(user: AuthenticatedUser): string {

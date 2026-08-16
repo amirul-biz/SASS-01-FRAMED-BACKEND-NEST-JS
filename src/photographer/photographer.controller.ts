@@ -15,6 +15,8 @@ import {
 import { type Express } from 'express';
 import {
   PhotographerProfileResponseDto,
+  PresignProfileImageUploadDto,
+  PresignProfileImageUploadResponseDto,
   RegisterPhotographerInputDto,
   RegisterPhotographerOutputDto,
   UpdatePhotographerProfileDto,
@@ -70,6 +72,18 @@ export class PhotographerController {
     });
 
     return { accepted: true, fileCount: files.length };
+  }
+
+  @Post('profile/image/presign')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async presignProfileImageUpload(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: PresignProfileImageUploadDto,
+  ): Promise<PresignProfileImageUploadResponseDto> {
+    return await this.photographerService.presignProfileImageUpload(user, dto);
   }
 
   @Get('profile')

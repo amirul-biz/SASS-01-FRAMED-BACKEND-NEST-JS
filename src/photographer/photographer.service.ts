@@ -16,8 +16,11 @@ import {
 import { AttachmentUploadedEvent } from '../config/queue/attachment-uploaded.event';
 import { UserRole } from '../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../types/express';
+import { randomUUID } from 'crypto';
 import {
   PhotographerProfileResponseDto,
+  PresignProfileImageUploadDto,
+  PresignProfileImageUploadResponseDto,
   RegisterPhotographerInputDto,
   RegisterPhotographerOutputDto,
   UpdatePhotographerProfileDto,
@@ -127,11 +130,36 @@ export class PhotographerService {
     user: AuthenticatedUser,
     dto: UpdatePhotographerProfileDto,
   ): Promise<PhotographerProfileResponseDto> {
+    if (
+      dto.profileImageUrl !== undefined &&
+      !this.storageService.isOwnPublicUrl(dto.profileImageUrl)
+    ) {
+      throw new BadRequestException('Invalid profile image URL');
+    }
+
     const userPlatformId = this.getOwnPhotographerPlatformId(user);
     return await this.photographerRepository.updateProfileByUserPlatformId(
       userPlatformId,
       dto,
     );
+  }
+
+  async presignProfileImageUpload(
+    user: AuthenticatedUser,
+    dto: PresignProfileImageUploadDto,
+  ): Promise<PresignProfileImageUploadResponseDto> {
+    const userPlatformId = this.getOwnPhotographerPlatformId(user);
+    const sanitizedFileName = dto.fileName.replace(/[^a-zA-Z0-9.-]/g, '-');
+    const key = `photographer-profiles/${userPlatformId}/${randomUUID()}-${sanitizedFileName}`;
+    const expiresIn = 300;
+
+    const uploadUrl = await this.storageService.getPresignedUploadUrl({
+      key,
+      mimeType: dto.mimeType,
+    });
+    const publicUrl = this.storageService.buildPublicUrl(key);
+
+    return { uploadUrl, publicUrl, key, expiresIn };
   }
 
   private getOwnPhotographerPlatformId(user: AuthenticatedUser): string {

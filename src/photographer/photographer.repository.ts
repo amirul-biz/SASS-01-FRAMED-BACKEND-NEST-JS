@@ -66,6 +66,9 @@ export class PhotographerRepository {
         }),
         ...(data.phone !== undefined && { phone: data.phone }),
         ...(data.contactNo !== undefined && { contactNo: data.contactNo }),
+        ...(data.profileImageUrl !== undefined && {
+          profileImageUrl: data.profileImageUrl,
+        }),
       },
     });
   }

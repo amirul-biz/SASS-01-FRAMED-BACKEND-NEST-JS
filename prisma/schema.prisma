@@ -79,12 +79,37 @@ model PricingOption {
   @@map("pricing_options")
 }
 
-enum BundleModel {
+enum VoucherDiscountType {
   FLAT_TIER
   PERCENT_TIER
-  NONE
 
-  @@map("bundle_model")
+  @@map("voucher_discount_type")
+}
+
+model Voucher {
+  id             String              @id @default(uuid())
+  photographerId String              @map("photographer_id")
+  name           String
+  discountType   VoucherDiscountType @map("discount_type")
+  conditions     Json                @map("conditions")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  bundles BundleVoucher[]
+
+  @@index([photographerId], map: "idx_vouchers_photographer")
+  @@map("vouchers")
+}
+
+model BundleVoucher {
+  pricingBundleId String @map("pricing_bundle_id")
+  voucherId       String @map("voucher_id")
+
+  pricingBundle PricingBundle @relation(fields: [pricingBundleId], references: [id], onDelete: Cascade)
+  voucher       Voucher       @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+
+  @@id([pricingBundleId, voucherId])
+  @@map("bundle_vouchers")
 }
 
 model PricingBundle {
@@ -92,14 +117,13 @@ model PricingBundle {
   photographerId  String  @map("photographer_id")
   name  String
   basePrice Decimal @db.Decimal(10,2) @map("base_price")
-  bundleModel BundleModel @map("bundle_model")
-  bundleTiers Json  @map("bundle_tiers")
   fullGalleryEnabled  Boolean @default(false) @map("full_gallery_enabled")
   fullGalleryPrice  Decimal @default(0) @db.Decimal(10,2) @map("full_gallery_price")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt  @map("updated_at")
 
   events EventPricingBundle[]
+  vouchers BundleVoucher[]
 
   @@index([photographerId], map: "idx_pricing_bundles_photographer")
   @@map("pricing_bundles")

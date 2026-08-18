@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { getAuth } from 'firebase-admin/auth';
-import { PrismaService } from 'src/config/database/prisma.service';
+import { PrismaService } from '../../config/database/prisma.service';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
@@ -28,7 +28,7 @@ export class FirebaseAuthGuard implements CanActivate {
 
     const dbUser = await this.prisma.user.findUnique({
       where: { firebaseId: decoded.uid },
-      include: { userPlatforms: true },
+      include: { userPlatforms: { include: { photographerProfile: true } } },
     });
 
     if (!dbUser) {

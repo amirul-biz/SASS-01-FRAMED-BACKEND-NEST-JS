@@ -2,6 +2,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { getAttachmentQueueMicroserviceOptions } from './config/queue/attachment-queue.module';
 declare const module: any;
 
 async function bootstrap() {
@@ -12,7 +13,9 @@ async function bootstrap() {
     module.hot.accept();
     module.hot.dispose(() => app.close());
   }
+  app.enableCors();
   app.useGlobalPipes(new ValidationPipe());
+  app.connectMicroservice(getAttachmentQueueMicroserviceOptions());
   const config = new DocumentBuilder()
     .setTitle('Framed API DOCS')
     .setDescription('The framed API description')
@@ -22,6 +25,7 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
   logger.log('Swagger API DOCS available at: http://localhost:3000/api');
+  await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();

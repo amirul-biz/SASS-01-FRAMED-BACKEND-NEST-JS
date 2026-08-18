@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../config/database/prisma.service';
-import { BundleModel, Prisma } from '../../generated/client';
+import { BundleModel, Prisma } from '../../generated/prisma/client';
 
 @Injectable()
 export class PricingBundlesRepository {

@@ -86,8 +86,42 @@ export class PhotographerProfileResponseDto {
   @IsString()
   @IsOptional()
   phone!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  contactNo!: string | null;
   @ApiProperty() @Type(() => Date) @IsDate() createdAt!: Date;
   @ApiProperty() @Type(() => Date) @IsDate() updatedAt!: Date;
+}
+
+export class UpdatePhotographerProfileDto {
+  @ApiPropertyOptional({ example: 'Jane Doe' })
+  @IsString({ message: 'Name must be a string' })
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({
+    example: 'Wedding and portrait photographer with 5 years of experience.',
+  })
+  @IsString({ message: 'Bio must be a string' })
+  @IsOptional()
+  bio?: string;
+
+  @ApiPropertyOptional({ example: 'Jane Doe Photography' })
+  @IsString({ message: 'Company name must be a string' })
+  @IsOptional()
+  companyName?: string;
+
+  @ApiPropertyOptional({ example: '+60123456789' })
+  @IsString({ message: 'Phone must be a string' })
+  @IsOptional()
+  phone?: string;
+
+  @ApiPropertyOptional({ example: '+60123456789' })
+  @IsString({ message: 'Contact number must be a string' })
+  @IsOptional()
+  contactNo?: string;
 }
 
 export class RegisterPhotographerDataDto {
@@ -112,3 +146,6 @@ export class RegisterPhotographerOutputDto {
   @Type(() => RegisterPhotographerDataDto)
   data!: RegisterPhotographerDataDto;
 }
+
+
+

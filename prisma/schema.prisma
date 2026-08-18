@@ -4,7 +4,7 @@ datasource db {
 
 generator client {
   provider     = "prisma-client"
-  output       = "../generated"
+  output       = "../generated/prisma"
   moduleFormat = "commonjs"
 }
 
@@ -48,6 +48,7 @@ model PhotographerProfile {
   bio            String?
   companyName    String?      @map("company_name")
   phone          String?
+  contactNo      String?      @map("contact_no")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 

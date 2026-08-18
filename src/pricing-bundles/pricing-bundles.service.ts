@@ -5,7 +5,7 @@ import {
   PricingBundleResponseDto,
   WireBundleModel,
 } from './pricing-bundles.dto';
-import { BundleModel, Prisma } from '../../generated/client';
+import { BundleModel, Prisma } from '../../generated/prisma/client';
 
 const TO_PRISMA_MODEL: Record<WireBundleModel, BundleModel> = {
   'flat-tier': BundleModel.FLAT_TIER,

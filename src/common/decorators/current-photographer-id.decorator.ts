@@ -1,25 +1,29 @@
 import {
-  BadRequestException,
   createParamDecorator,
   ExecutionContext,
+  ForbiddenException,
 } from '@nestjs/common';
 
 export const currentPhotographerIdFactory = (
-    _data: unknown,
-    context: ExecutionContext,
+  _data: unknown,
+  context: ExecutionContext,
 ): string => {
-    const request = context.switchToHttp().getRequest();
-    const header = request.headers?.['x-photographer-id'];
+  const request = context.switchToHttp().getRequest();
+  const dbUser = request.dbUser as
+    | { userPlatforms: { role: string; photographerProfile: { id: string } | null }[] }
+    | undefined;
 
-    if (typeof header !== 'string' || header.trim() === '') {
-        throw new BadRequestException(
-            'Missing x-photographer-id header (temporary stand-in until real auth is wired up)',
-        );
-    }
+  const photographerId = dbUser?.userPlatforms.find(
+    (platform) => platform.role === 'PHOTOGRAPHER',
+  )?.photographerProfile?.id;
 
-    return header;
+  if (!photographerId) {
+    throw new ForbiddenException('This account has no photographer profile');
+  }
+
+  return photographerId;
 };
 
 export const CurrentPhotographerId = createParamDecorator(
-    currentPhotographerIdFactory,
+  currentPhotographerIdFactory,
 );

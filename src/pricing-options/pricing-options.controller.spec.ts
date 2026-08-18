@@ -1,8 +1,13 @@
-import { INestApplication } from "@nestjs/common";
-import { Test } from "@nestjs/testing";
+import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import {PricingOptionsController} from './pricing-options.controller';
-import {PricingOptionsService} from './pricing-options.service';
+import { PricingOptionsController } from './pricing-options.controller';
+import { PricingOptionsService } from './pricing-options.service';
+
+jest.mock('firebase-admin/auth', () => ({ getAuth: jest.fn() }));
+
+import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 describe('PricingOptionsController', () => {
   let app: INestApplication;
@@ -14,7 +19,17 @@ describe('PricingOptionsController', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [PricingOptionsController],
       providers: [{ provide: PricingOptionsService, useValue: service }],
-    }).compile();
+    })
+      .overrideGuard(FirebaseAuthGuard)
+      .useValue({ canActivate: (ctx: any) => {
+        ctx.switchToHttp().getRequest().dbUser = {
+          userPlatforms: [{ role: 'PHOTOGRAPHER', photographerProfile: { id: 'photographer-1' } }],
+        };
+        return true;
+      } })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
@@ -24,19 +39,11 @@ describe('PricingOptionsController', () => {
     await app.close();
   });
 
-  it('GET /pricing-options passes the photographer id from the header to the service', async () => {
+  it('GET /pricing-options passes the guard-derived photographer id to the service', async () => {
     service.list.mockResolvedValue([]);
 
-    await request(app.getHttpServer())
-      .get('/pricing-options')
-      .set('x-photographer-id', 'photographer-1')
-      .expect(200);
+    await request(app.getHttpServer()).get('/pricing-options').expect(200);
 
     expect(service.list).toHaveBeenCalledWith('photographer-1');
-  });
-
-  it('GET /pricing-options without the header returns 400', async () => {
-    await request(app.getHttpServer()).get('/pricing-options').expect(400);
-    expect(service.list).not.toHaveBeenCalled();
   });
 });

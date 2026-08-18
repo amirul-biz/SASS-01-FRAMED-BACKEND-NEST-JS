@@ -7,10 +7,11 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PricingBundlesService } from './pricing-bundles.service';
 import {
   CreatePricingBundleDto,
@@ -18,9 +19,16 @@ import {
   UpdatePricingBundleDto,
 } from './pricing-bundles.dto';
 import { CurrentPhotographerId } from '../common/decorators/current-photographer-id.decorator';
+import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../../generated/prisma/enums';
 
 @ApiTags('pricing-bundles')
+@ApiBearerAuth()
 @Controller('pricing-bundles')
+@UseGuards(FirebaseAuthGuard, RolesGuard)
+@Roles(UserRole.PHOTOGRAPHER)
 @UsePipes(new ValidationPipe({ transform: true }))
 export class PricingBundlesController {
   constructor(private readonly service: PricingBundlesService) {}

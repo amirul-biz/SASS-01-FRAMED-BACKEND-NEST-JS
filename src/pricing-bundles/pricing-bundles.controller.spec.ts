@@ -4,6 +4,11 @@ import request from 'supertest';
 import { PricingBundlesController } from './pricing-bundles.controller';
 import { PricingBundlesService } from './pricing-bundles.service';
 
+jest.mock('firebase-admin/auth', () => ({ getAuth: jest.fn() }));
+
+import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+
 describe('PricingBundlesController', () => {
   let app: INestApplication;
   let service: {
@@ -26,7 +31,17 @@ describe('PricingBundlesController', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [PricingBundlesController],
       providers: [{ provide: PricingBundlesService, useValue: service }],
-    }).compile();
+    })
+      .overrideGuard(FirebaseAuthGuard)
+      .useValue({ canActivate: (ctx: any) => {
+        ctx.switchToHttp().getRequest().dbUser = {
+          userPlatforms: [{ role: 'PHOTOGRAPHER', photographerProfile: { id: 'photographer-1' } }],
+        };
+        return true;
+      } })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
@@ -36,13 +51,10 @@ describe('PricingBundlesController', () => {
     await app.close();
   });
 
-  it('GET /pricing-bundles passes the photographer id to the service', async () => {
+  it('GET /pricing-bundles passes the guard-derived photographer id to the service', async () => {
     service.list.mockResolvedValue([]);
 
-    await request(app.getHttpServer())
-      .get('/pricing-bundles')
-      .set('x-photographer-id', 'photographer-1')
-      .expect(200);
+    await request(app.getHttpServer()).get('/pricing-bundles').expect(200);
 
     expect(service.list).toHaveBeenCalledWith('photographer-1');
   });
@@ -50,9 +62,6 @@ describe('PricingBundlesController', () => {
   it('DELETE /pricing-bundles/:id returns 409 when the service throws ConflictException', async () => {
     service.remove.mockRejectedValue(new ConflictException('in use'));
 
-    await request(app.getHttpServer())
-      .delete('/pricing-bundles/bundle-1')
-      .set('x-photographer-id', 'photographer-1')
-      .expect(409);
+    await request(app.getHttpServer()).delete('/pricing-bundles/bundle-1').expect(409);
   });
 });

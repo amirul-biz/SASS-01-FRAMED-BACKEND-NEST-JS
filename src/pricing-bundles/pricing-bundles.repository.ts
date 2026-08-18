@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../config/database/prisma.service';
-import { BundleModel, Prisma } from '../../generated/prisma/client';
+
+const VOUCHER_INCLUDE = { vouchers: { include: { voucher: true } } } as const;
 
 @Injectable()
 export class PricingBundlesRepository {
@@ -10,12 +11,16 @@ export class PricingBundlesRepository {
     const bundles = await this.prisma.pricingBundle.findMany({
       where: { photographerId },
       orderBy: { createdAt: 'asc' },
+      include: VOUCHER_INCLUDE,
     });
     return Promise.all(bundles.map((bundle) => this.withEventsUsingCount(bundle)));
   }
 
   async findById(id: string) {
-    const bundle = await this.prisma.pricingBundle.findUnique({ where: { id } });
+    const bundle = await this.prisma.pricingBundle.findUnique({
+      where: { id },
+      include: VOUCHER_INCLUDE,
+    });
     if (!bundle) return null;
     return this.withEventsUsingCount(bundle);
   }
@@ -24,12 +29,18 @@ export class PricingBundlesRepository {
     photographerId: string;
     name: string;
     basePrice: number;
-    bundleModel: BundleModel;
-    bundleTiers: Prisma.InputJsonValue;
+    voucherIds: string[];
     fullGalleryEnabled: boolean;
     fullGalleryPrice: number;
   }) {
-    return this.prisma.pricingBundle.create({ data });
+    const { voucherIds, ...bundleData } = data;
+    return this.prisma.pricingBundle.create({
+      data: {
+        ...bundleData,
+        vouchers: { create: voucherIds.map((voucherId) => ({ voucherId })) },
+      },
+      include: VOUCHER_INCLUDE,
+    });
   }
 
   update(
@@ -37,13 +48,25 @@ export class PricingBundlesRepository {
     data: Partial<{
       name: string;
       basePrice: number;
-      bundleModel: BundleModel;
-      bundleTiers: Prisma.InputJsonValue;
+      voucherIds: string[];
       fullGalleryEnabled: boolean;
       fullGalleryPrice: number;
     }>,
   ) {
-    return this.prisma.pricingBundle.update({ where: { id }, data });
+    const { voucherIds, ...bundleData } = data;
+    return this.prisma.$transaction(async (tx) => {
+      if (voucherIds !== undefined) {
+        await tx.bundleVoucher.deleteMany({ where: { pricingBundleId: id } });
+        await tx.bundleVoucher.createMany({
+          data: voucherIds.map((voucherId) => ({ pricingBundleId: id, voucherId })),
+        });
+      }
+      return tx.pricingBundle.update({
+        where: { id },
+        data: bundleData,
+        include: VOUCHER_INCLUDE,
+      });
+    });
   }
 
   delete(id: string) {

@@ -1,33 +1,15 @@
-import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
-  IsIn,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
-  IsPositive,
   IsString,
   Min,
-  ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-
-export type WireBundleModel = 'flat-tier' | 'percent-tier' | 'none';
-export const WIRE_BUNDLE_MODELS: WireBundleModel[] = ['flat-tier', 'percent-tier', 'none'];
-
-export class BundleTierDto {
-  @ApiProperty({ example: 5 })
-  @IsInt()
-  @IsPositive()
-  minQuantity!: number;
-
-  @ApiProperty({ example: 30 })
-  @IsNumber()
-  @Min(0)
-  value!: number;
-}
+import { VoucherConditionDto, WIRE_VOUCHER_DISCOUNT_TYPES } from '../vouchers/vouchers.dto';
+import type { WireVoucherDiscountType } from '../vouchers/vouchers.dto';
 
 export class CreatePricingBundleDto {
   @ApiProperty({ example: 'Standard Bundle' })
@@ -40,15 +22,10 @@ export class CreatePricingBundleDto {
   @Min(0)
   basePrice!: number;
 
-  @ApiProperty({ example: 'flat-tier', enum: WIRE_BUNDLE_MODELS })
-  @IsIn(WIRE_BUNDLE_MODELS)
-  bundleModel!: WireBundleModel;
-
-  @ApiProperty({ type: [BundleTierDto] })
+  @ApiProperty({ type: [String], example: ['voucher-1', 'voucher-2'] })
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BundleTierDto)
-  bundleTiers!: BundleTierDto[];
+  @IsString({ each: true })
+  voucherIds!: string[];
 
   @ApiProperty({ example: false })
   @IsBoolean()
@@ -73,17 +50,11 @@ export class UpdatePricingBundleDto {
   @Min(0)
   basePrice?: number;
 
-  @ApiProperty({ example: 'flat-tier', enum: WIRE_BUNDLE_MODELS, required: false })
-  @IsOptional()
-  @IsIn(WIRE_BUNDLE_MODELS)
-  bundleModel?: WireBundleModel;
-
-  @ApiProperty({ type: [BundleTierDto], required: false })
+  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BundleTierDto)
-  bundleTiers?: BundleTierDto[];
+  @IsString({ each: true })
+  voucherIds?: string[];
 
   @ApiProperty({ example: false, required: false })
   @IsOptional()
@@ -97,13 +68,19 @@ export class UpdatePricingBundleDto {
   fullGalleryPrice?: number;
 }
 
+export class VoucherSummaryDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ enum: WIRE_VOUCHER_DISCOUNT_TYPES }) discountType!: WireVoucherDiscountType;
+  @ApiProperty({ type: [VoucherConditionDto] }) conditions!: VoucherConditionDto[];
+}
+
 export class PricingBundleResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() photographerId!: string;
   @ApiProperty() name!: string;
   @ApiProperty() basePrice!: number;
-  @ApiProperty({ enum: WIRE_BUNDLE_MODELS }) bundleModel!: WireBundleModel;
-  @ApiProperty({ type: [BundleTierDto] }) bundleTiers!: BundleTierDto[];
+  @ApiProperty({ type: [VoucherSummaryDto] }) vouchers!: VoucherSummaryDto[];
   @ApiProperty() fullGalleryEnabled!: boolean;
   @ApiProperty() fullGalleryPrice!: number;
   @ApiProperty() eventsUsingCount!: number;

@@ -1,29 +1,18 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PricingBundlesRepository } from './pricing-bundles.repository';
-import {
-  BundleTierDto,
-  PricingBundleResponseDto,
-  WireBundleModel,
-} from './pricing-bundles.dto';
-import { BundleModel, Prisma } from '../../generated/prisma/client';
+import { PricingBundleResponseDto, VoucherSummaryDto } from './pricing-bundles.dto';
+import { VoucherDiscountType } from '../../generated/prisma/client';
+import { VoucherConditionDto, WireVoucherDiscountType } from '../vouchers/vouchers.dto';
 
-const TO_PRISMA_MODEL: Record<WireBundleModel, BundleModel> = {
-  'flat-tier': BundleModel.FLAT_TIER,
-  'percent-tier': BundleModel.PERCENT_TIER,
-  none: BundleModel.NONE,
-};
-
-const TO_WIRE_MODEL: Record<BundleModel, WireBundleModel> = {
-  [BundleModel.FLAT_TIER]: 'flat-tier',
-  [BundleModel.PERCENT_TIER]: 'percent-tier',
-  [BundleModel.NONE]: 'none',
+const TO_WIRE_VOUCHER_TYPE: Record<VoucherDiscountType, WireVoucherDiscountType> = {
+  [VoucherDiscountType.FLAT_TIER]: 'flat-tier',
+  [VoucherDiscountType.PERCENT_TIER]: 'percent-tier',
 };
 
 interface BundleInput {
   name: string;
   basePrice: number;
-  bundleModel: WireBundleModel;
-  bundleTiers: BundleTierDto[];
+  voucherIds: string[];
   fullGalleryEnabled: boolean;
   fullGalleryPrice: number;
 }
@@ -50,8 +39,7 @@ export class PricingBundlesService {
       photographerId,
       name: input.name,
       basePrice: input.basePrice,
-      bundleModel: TO_PRISMA_MODEL[input.bundleModel],
-      bundleTiers: input.bundleTiers as unknown as Prisma.InputJsonValue,
+      voucherIds: input.voucherIds,
       fullGalleryEnabled: input.fullGalleryEnabled,
       fullGalleryPrice: input.fullGalleryPrice,
     });
@@ -67,8 +55,7 @@ export class PricingBundlesService {
     const bundle = await this.repository.update(id, {
       name: changes.name,
       basePrice: changes.basePrice,
-      bundleModel: changes.bundleModel ? TO_PRISMA_MODEL[changes.bundleModel] : undefined,
-      bundleTiers: changes.bundleTiers as unknown as Prisma.InputJsonValue | undefined,
+      voucherIds: changes.voucherIds,
       fullGalleryEnabled: changes.fullGalleryEnabled,
       fullGalleryPrice: changes.fullGalleryPrice,
     });
@@ -98,19 +85,23 @@ export class PricingBundlesService {
     photographerId: string;
     name: string;
     basePrice: { toString(): string };
-    bundleModel: BundleModel;
-    bundleTiers: unknown;
     fullGalleryEnabled: boolean;
     fullGalleryPrice: { toString(): string };
     eventsUsingCount: number;
+    vouchers: { voucher: { id: string; name: string; discountType: VoucherDiscountType; conditions: unknown } }[];
   }): PricingBundleResponseDto {
+    const vouchers: VoucherSummaryDto[] = bundle.vouchers.map(({ voucher }) => ({
+      id: voucher.id,
+      name: voucher.name,
+      discountType: TO_WIRE_VOUCHER_TYPE[voucher.discountType],
+      conditions: voucher.conditions as VoucherConditionDto[],
+    }));
     return {
       id: bundle.id,
       photographerId: bundle.photographerId,
       name: bundle.name,
       basePrice: Number(bundle.basePrice),
-      bundleModel: TO_WIRE_MODEL[bundle.bundleModel],
-      bundleTiers: bundle.bundleTiers as BundleTierDto[],
+      vouchers,
       fullGalleryEnabled: bundle.fullGalleryEnabled,
       fullGalleryPrice: Number(bundle.fullGalleryPrice),
       eventsUsingCount: bundle.eventsUsingCount,

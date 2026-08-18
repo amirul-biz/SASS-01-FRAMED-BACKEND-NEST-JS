@@ -12,15 +12,21 @@ describe('PricingBundlesService', () => {
   };
   let service: PricingBundlesService;
 
+  const voucher = {
+    id: 'voucher-1',
+    name: 'Group Discount',
+    discountType: 'PERCENT_TIER' as const,
+    conditions: [{ minPhotos: 5, maxPhotos: null, value: 15 }],
+  };
+
   const bundle = {
     id: 'bundle-1',
     photographerId: 'photographer-1',
     name: 'Standard Bundle',
     basePrice: { toString: () => '15.00' } as any,
-    bundleModel: 'FLAT_TIER' as const,
-    bundleTiers: [{ minQuantity: 5, value: 30 }],
     fullGalleryEnabled: false,
     fullGalleryPrice: { toString: () => '0.00' } as any,
+    vouchers: [{ voucher }],
     eventsUsingCount: 0,
   };
 
@@ -37,12 +43,14 @@ describe('PricingBundlesService', () => {
   });
 
   describe('list', () => {
-    it('maps bundleModel to wire format and money fields to numbers', async () => {
+    it('maps attached vouchers to wire format and money fields to numbers', async () => {
       repository.findAllForPhotographer.mockResolvedValue([bundle]);
 
       const [result] = await service.list('photographer-1');
 
-      expect(result.bundleModel).toBe('flat-tier');
+      expect(result.vouchers).toEqual([
+        { id: 'voucher-1', name: 'Group Discount', discountType: 'percent-tier', conditions: voucher.conditions },
+      ]);
       expect(result.basePrice).toBe(15);
       expect(result.fullGalleryPrice).toBe(0);
       expect(result.eventsUsingCount).toBe(0);
@@ -50,14 +58,13 @@ describe('PricingBundlesService', () => {
   });
 
   describe('create', () => {
-    it('maps the wire bundleModel to the Prisma enum before saving', async () => {
+    it('passes voucherIds through to the repository', async () => {
       repository.create.mockResolvedValue({ ...bundle, eventsUsingCount: 0 });
 
       await service.create('photographer-1', {
         name: 'Standard Bundle',
         basePrice: 15,
-        bundleModel: 'flat-tier',
-        bundleTiers: [{ minQuantity: 5, value: 30 }],
+        voucherIds: ['voucher-1'],
         fullGalleryEnabled: false,
         fullGalleryPrice: 0,
       });
@@ -66,8 +73,7 @@ describe('PricingBundlesService', () => {
         photographerId: 'photographer-1',
         name: 'Standard Bundle',
         basePrice: 15,
-        bundleModel: 'FLAT_TIER',
-        bundleTiers: [{ minQuantity: 5, value: 30 }],
+        voucherIds: ['voucher-1'],
         fullGalleryEnabled: false,
         fullGalleryPrice: 0,
       });

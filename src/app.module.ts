@@ -7,6 +7,7 @@ import { FirebaseModule } from './config/firebase/firebase.module';
 import { PhotographerModule } from './photographer/photographer.module';
 import { PricingOptionsModule } from './pricing-options/pricing-options.module';
 import { PricingBundlesModule } from './pricing-bundles/pricing-bundles.module';
+import { VouchersModule } from './vouchers/vouchers.module';
 import { SampleModule } from './sample/sample.module';
 import { UsersModule } from './users/users.module';
 
@@ -19,6 +20,7 @@ import { UsersModule } from './users/users.module';
     PhotographerModule,
     PricingOptionsModule,
     PricingBundlesModule,
+    VouchersModule,
     UsersModule,
   ],
   controllers: [AppController],

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../config/database/prisma.service';
 
-const VOUCHER_INCLUDE = { vouchers: { include: { voucher: true } } } as const;
+const BUNDLE_INCLUDE = {
+  vouchers: { include: { voucher: true } },
+  pricingOptions: { include: { pricingOption: true } },
+} as const;
 
 @Injectable()
 export class PricingBundlesRepository {
@@ -11,7 +14,7 @@ export class PricingBundlesRepository {
     const bundles = await this.prisma.pricingBundle.findMany({
       where: { photographerId },
       orderBy: { createdAt: 'asc' },
-      include: VOUCHER_INCLUDE,
+      include: BUNDLE_INCLUDE,
     });
     return Promise.all(bundles.map((bundle) => this.withEventsUsingCount(bundle)));
   }
@@ -19,7 +22,7 @@ export class PricingBundlesRepository {
   async findById(id: string) {
     const bundle = await this.prisma.pricingBundle.findUnique({
       where: { id },
-      include: VOUCHER_INCLUDE,
+      include: BUNDLE_INCLUDE,
     });
     if (!bundle) return null;
     return this.withEventsUsingCount(bundle);
@@ -28,18 +31,21 @@ export class PricingBundlesRepository {
   create(data: {
     photographerId: string;
     name: string;
-    basePrice: number;
     voucherIds: string[];
+    pricingOptionIds: string[];
     fullGalleryEnabled: boolean;
     fullGalleryPrice: number;
   }) {
-    const { voucherIds, ...bundleData } = data;
+    const { voucherIds, pricingOptionIds, ...bundleData } = data;
     return this.prisma.pricingBundle.create({
       data: {
         ...bundleData,
         vouchers: { create: voucherIds.map((voucherId) => ({ voucherId })) },
+        pricingOptions: {
+          create: pricingOptionIds.map((pricingOptionId) => ({ pricingOptionId })),
+        },
       },
-      include: VOUCHER_INCLUDE,
+      include: BUNDLE_INCLUDE,
     });
   }
 
@@ -47,13 +53,13 @@ export class PricingBundlesRepository {
     id: string,
     data: Partial<{
       name: string;
-      basePrice: number;
       voucherIds: string[];
+      pricingOptionIds: string[];
       fullGalleryEnabled: boolean;
       fullGalleryPrice: number;
     }>,
   ) {
-    const { voucherIds, ...bundleData } = data;
+    const { voucherIds, pricingOptionIds, ...bundleData } = data;
     return this.prisma.$transaction(async (tx) => {
       if (voucherIds !== undefined) {
         await tx.bundleVoucher.deleteMany({ where: { pricingBundleId: id } });
@@ -61,10 +67,16 @@ export class PricingBundlesRepository {
           data: voucherIds.map((voucherId) => ({ pricingBundleId: id, voucherId })),
         });
       }
+      if (pricingOptionIds !== undefined) {
+        await tx.bundlePricingOption.deleteMany({ where: { pricingBundleId: id } });
+        await tx.bundlePricingOption.createMany({
+          data: pricingOptionIds.map((pricingOptionId) => ({ pricingBundleId: id, pricingOptionId })),
+        });
+      }
       return tx.pricingBundle.update({
         where: { id },
         data: bundleData,
-        include: VOUCHER_INCLUDE,
+        include: BUNDLE_INCLUDE,
       });
     });
   }

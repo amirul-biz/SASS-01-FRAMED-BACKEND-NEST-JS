@@ -17,15 +17,15 @@ export class CreatePricingBundleDto {
   @IsNotEmpty({ message: 'Name is required' })
   name!: string;
 
-  @ApiProperty({ example: 15 })
-  @IsNumber()
-  @Min(0)
-  basePrice!: number;
-
   @ApiProperty({ type: [String], example: ['voucher-1', 'voucher-2'] })
   @IsArray()
   @IsString({ each: true })
   voucherIds!: string[];
+
+  @ApiProperty({ type: [String], example: ['option-1', 'option-2'] })
+  @IsArray()
+  @IsString({ each: true })
+  pricingOptionIds!: string[];
 
   @ApiProperty({ example: false })
   @IsBoolean()
@@ -44,17 +44,17 @@ export class UpdatePricingBundleDto {
   @IsNotEmpty({ message: 'Name is required' })
   name?: string;
 
-  @ApiProperty({ example: 15, required: false })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  basePrice?: number;
-
   @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   voucherIds?: string[];
+
+  @ApiProperty({ type: [String], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  pricingOptionIds?: string[];
 
   @ApiProperty({ example: false, required: false })
   @IsOptional()
@@ -75,12 +75,18 @@ export class VoucherSummaryDto {
   @ApiProperty({ type: [VoucherConditionDto] }) conditions!: VoucherConditionDto[];
 }
 
+export class PricingOptionSummaryDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() label!: string;
+  @ApiProperty() price!: number;
+}
+
 export class PricingBundleResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() photographerId!: string;
   @ApiProperty() name!: string;
-  @ApiProperty() basePrice!: number;
   @ApiProperty({ type: [VoucherSummaryDto] }) vouchers!: VoucherSummaryDto[];
+  @ApiProperty({ type: [PricingOptionSummaryDto] }) pricingOptions!: PricingOptionSummaryDto[];
   @ApiProperty() fullGalleryEnabled!: boolean;
   @ApiProperty() fullGalleryPrice!: number;
   @ApiProperty() eventsUsingCount!: number;

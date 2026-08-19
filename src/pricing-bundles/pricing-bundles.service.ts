@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PricingBundlesRepository } from './pricing-bundles.repository';
-import { PricingBundleResponseDto, VoucherSummaryDto } from './pricing-bundles.dto';
+import { PricingBundleResponseDto, PricingOptionSummaryDto, VoucherSummaryDto } from './pricing-bundles.dto';
 import { VoucherDiscountType } from '../../generated/prisma/client';
 import { VoucherConditionDto, WireVoucherDiscountType } from '../vouchers/vouchers.dto';
 
@@ -11,8 +11,8 @@ const TO_WIRE_VOUCHER_TYPE: Record<VoucherDiscountType, WireVoucherDiscountType>
 
 interface BundleInput {
   name: string;
-  basePrice: number;
   voucherIds: string[];
+  pricingOptionIds: string[];
   fullGalleryEnabled: boolean;
   fullGalleryPrice: number;
 }
@@ -38,8 +38,8 @@ export class PricingBundlesService {
     const bundle = await this.repository.create({
       photographerId,
       name: input.name,
-      basePrice: input.basePrice,
       voucherIds: input.voucherIds,
+      pricingOptionIds: input.pricingOptionIds,
       fullGalleryEnabled: input.fullGalleryEnabled,
       fullGalleryPrice: input.fullGalleryPrice,
     });
@@ -54,8 +54,8 @@ export class PricingBundlesService {
     const existing = await this.assertOwnedByPhotographer(photographerId, id);
     const bundle = await this.repository.update(id, {
       name: changes.name,
-      basePrice: changes.basePrice,
       voucherIds: changes.voucherIds,
+      pricingOptionIds: changes.pricingOptionIds,
       fullGalleryEnabled: changes.fullGalleryEnabled,
       fullGalleryPrice: changes.fullGalleryPrice,
     });
@@ -84,11 +84,11 @@ export class PricingBundlesService {
     id: string;
     photographerId: string;
     name: string;
-    basePrice: { toString(): string };
     fullGalleryEnabled: boolean;
     fullGalleryPrice: { toString(): string };
     eventsUsingCount: number;
     vouchers: { voucher: { id: string; name: string; discountType: VoucherDiscountType; conditions: unknown } }[];
+    pricingOptions: { pricingOption: { id: string; label: string; price: { toString(): string } } }[];
   }): PricingBundleResponseDto {
     const vouchers: VoucherSummaryDto[] = bundle.vouchers.map(({ voucher }) => ({
       id: voucher.id,
@@ -96,12 +96,17 @@ export class PricingBundlesService {
       discountType: TO_WIRE_VOUCHER_TYPE[voucher.discountType],
       conditions: voucher.conditions as VoucherConditionDto[],
     }));
+    const pricingOptions: PricingOptionSummaryDto[] = bundle.pricingOptions.map(({ pricingOption }) => ({
+      id: pricingOption.id,
+      label: pricingOption.label,
+      price: Number(pricingOption.price),
+    }));
     return {
       id: bundle.id,
       photographerId: bundle.photographerId,
       name: bundle.name,
-      basePrice: Number(bundle.basePrice),
       vouchers,
+      pricingOptions,
       fullGalleryEnabled: bundle.fullGalleryEnabled,
       fullGalleryPrice: Number(bundle.fullGalleryPrice),
       eventsUsingCount: bundle.eventsUsingCount,

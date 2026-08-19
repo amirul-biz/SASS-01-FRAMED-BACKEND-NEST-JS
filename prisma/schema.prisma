@@ -75,6 +75,8 @@ model PricingOption {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt  @map("updated_at")
 
+  bundles BundlePricingOption[]
+
   @@index([photographerId], map: "idx_pricing_options_photographer")
   @@map("pricing_options")
 }
@@ -112,11 +114,21 @@ model BundleVoucher {
   @@map("bundle_vouchers")
 }
 
+model BundlePricingOption {
+  pricingBundleId String @map("pricing_bundle_id")
+  pricingOptionId String @map("pricing_option_id")
+
+  pricingBundle PricingBundle @relation(fields: [pricingBundleId], references: [id], onDelete: Cascade)
+  pricingOption PricingOption @relation(fields: [pricingOptionId], references: [id], onDelete: Restrict)
+
+  @@id([pricingBundleId, pricingOptionId])
+  @@map("bundle_pricing_options")
+}
+
 model PricingBundle {
   id  String  @id @default(uuid())
   photographerId  String  @map("photographer_id")
   name  String
-  basePrice Decimal @db.Decimal(10,2) @map("base_price")
   fullGalleryEnabled  Boolean @default(false) @map("full_gallery_enabled")
   fullGalleryPrice  Decimal @default(0) @db.Decimal(10,2) @map("full_gallery_price")
   createdAt DateTime @default(now()) @map("created_at")
@@ -124,6 +136,7 @@ model PricingBundle {
 
   events EventPricingBundle[]
   vouchers BundleVoucher[]
+  pricingOptions BundlePricingOption[]
 
   @@index([photographerId], map: "idx_pricing_bundles_photographer")
   @@map("pricing_bundles")

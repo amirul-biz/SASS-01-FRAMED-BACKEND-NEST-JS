@@ -19,14 +19,20 @@ describe('PricingBundlesService', () => {
     conditions: [{ minPhotos: 5, maxPhotos: null, value: 15 }],
   };
 
+  const pricingOption = {
+    id: 'option-1',
+    label: '30MP JPEG',
+    price: { toString: () => '12.00' } as any,
+  };
+
   const bundle = {
     id: 'bundle-1',
     photographerId: 'photographer-1',
     name: 'Standard Bundle',
-    basePrice: { toString: () => '15.00' } as any,
     fullGalleryEnabled: false,
     fullGalleryPrice: { toString: () => '0.00' } as any,
     vouchers: [{ voucher }],
+    pricingOptions: [{ pricingOption }],
     eventsUsingCount: 0,
   };
 
@@ -51,20 +57,20 @@ describe('PricingBundlesService', () => {
       expect(result.vouchers).toEqual([
         { id: 'voucher-1', name: 'Group Discount', discountType: 'percent-tier', conditions: voucher.conditions },
       ]);
-      expect(result.basePrice).toBe(15);
+      expect(result.pricingOptions).toEqual([{ id: 'option-1', label: '30MP JPEG', price: 12 }]);
       expect(result.fullGalleryPrice).toBe(0);
       expect(result.eventsUsingCount).toBe(0);
     });
   });
 
   describe('create', () => {
-    it('passes voucherIds through to the repository', async () => {
+    it('passes voucherIds and pricingOptionIds through to the repository', async () => {
       repository.create.mockResolvedValue({ ...bundle, eventsUsingCount: 0 });
 
       await service.create('photographer-1', {
         name: 'Standard Bundle',
-        basePrice: 15,
         voucherIds: ['voucher-1'],
+        pricingOptionIds: ['option-1'],
         fullGalleryEnabled: false,
         fullGalleryPrice: 0,
       });
@@ -72,8 +78,8 @@ describe('PricingBundlesService', () => {
       expect(repository.create).toHaveBeenCalledWith({
         photographerId: 'photographer-1',
         name: 'Standard Bundle',
-        basePrice: 15,
         voucherIds: ['voucher-1'],
+        pricingOptionIds: ['option-1'],
         fullGalleryEnabled: false,
         fullGalleryPrice: 0,
       });

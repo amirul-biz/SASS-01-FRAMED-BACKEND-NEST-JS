@@ -1,22 +1,15 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
 import { FirebaseService } from '../config/firebase/firebase.service';
 import { StorageService } from '../config/storage/storage.service';
-import {
-  ATTACHMENT_UPLOADED_EVENT_PATTERN,
-  UPLOAD_ATTACHMENT_QUEUE_CLIENT,
-} from '../config/queue/attachment-queue.constants';
-import { AttachmentUploadedEvent } from '../config/queue/attachment-uploaded.event';
 import { UserRole } from '../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../types/express';
 import { randomUUID } from 'crypto';
+import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
 import {
   PhotographerProfileResponseDto,
   PresignProfileImageUploadDto,
@@ -35,8 +28,6 @@ export class PhotographerService {
     private readonly firebaseService: FirebaseService,
     private readonly photographerRepository: PhotographerRepository,
     private readonly storageService: StorageService,
-    @Inject(UPLOAD_ATTACHMENT_QUEUE_CLIENT)
-    private readonly attachmentQueueClient: ClientProxy,
   ) {}
 
   async registerPhotographer(
@@ -80,19 +71,13 @@ export class PhotographerService {
     }
 
     // Sequential on purpose: a large batch shouldn't fire hundreds of
-    // concurrent R2 uploads and queue publishes at once.
+    // concurrent R2 uploads at once.
     for (const file of files) {
       try {
-        const key = await this.storageService.uploadFile({
+        await this.storageService.uploadFile({
           originalName: file.originalname,
           mimeType: file.mimetype,
           buffer: file.buffer,
-        });
-        await this.publishAttachmentUploaded({
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          sizeBytes: file.size,
-          key,
         });
       } catch (error) {
         this.logger.error(
@@ -100,14 +85,6 @@ export class PhotographerService {
         );
       }
     }
-  }
-
-  private async publishAttachmentUploaded(
-    event: AttachmentUploadedEvent,
-  ): Promise<void> {
-    await firstValueFrom(
-      this.attachmentQueueClient.emit(ATTACHMENT_UPLOADED_EVENT_PATTERN, event),
-    );
   }
 
   async getMyProfile(
@@ -149,7 +126,7 @@ export class PhotographerService {
     dto: PresignProfileImageUploadDto,
   ): Promise<PresignProfileImageUploadResponseDto> {
     const userPlatformId = this.getOwnPhotographerPlatformId(user);
-    const sanitizedFileName = dto.fileName.replace(/[^a-zA-Z0-9.-]/g, '-');
+    const sanitizedFileName = sanitizeFileName(dto.fileName);
     const key = `photographer-profiles/${userPlatformId}/${randomUUID()}-${sanitizedFileName}`;
     const expiresIn = 300;
 

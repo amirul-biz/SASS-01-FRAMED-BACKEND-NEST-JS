@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
 import { StorageService } from '../config/storage/storage.service';
 import { PhotographerService } from '../photographer/photographer.service';
 import type { AuthenticatedUser } from '../types/express';
@@ -92,7 +93,7 @@ export class EventService {
     dto: PresignEventCoverPhotoUploadDto,
   ): Promise<PresignEventCoverPhotoUploadResponseDto> {
     const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
-    const sanitizedFileName = dto.fileName.replace(/[^a-zA-Z0-9.-]/g, '-');
+    const sanitizedFileName = sanitizeFileName(dto.fileName);
     const key = `events/${photographerId}/${randomUUID()}-${sanitizedFileName}`;
     const expiresIn = 300;
 

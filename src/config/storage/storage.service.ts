@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { HeadObjectCommand, NotFound, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface UploadableFile {
@@ -36,20 +36,16 @@ export class StorageService {
   }
 
   async uploadFile(file: UploadableFile): Promise<string> {
-    if (!this.s3Client || !this.bucketName) {
-      throw new Error(
-        'File upload is not configured. Please set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME.',
-      );
-    }
+    const { client, bucketName } = this.requireClient();
 
     const command = new PutObjectCommand({
-      Bucket: this.bucketName,
+      Bucket: bucketName,
       Key: file.originalName,
       Body: file.buffer,
       ContentType: file.mimeType,
     });
 
-    await this.s3Client.send(command);
+    await client.send(command);
     return file.originalName;
   }
 
@@ -57,19 +53,29 @@ export class StorageService {
     key: string;
     mimeType: string;
   }): Promise<string> {
-    if (!this.s3Client || !this.bucketName) {
-      throw new Error(
-        'File upload is not configured. Please set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME.',
-      );
-    }
+    const { client, bucketName } = this.requireClient();
 
     const command = new PutObjectCommand({
-      Bucket: this.bucketName,
+      Bucket: bucketName,
       Key: params.key,
       ContentType: params.mimeType,
     });
 
-    return await getSignedUrl(this.s3Client, command, { expiresIn: 300 });
+    return await getSignedUrl(client, command, { expiresIn: 300 });
+  }
+
+  async objectExists(key: string): Promise<boolean> {
+    const { client, bucketName } = this.requireClient();
+
+    try {
+      await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
+      return true;
+    } catch (error) {
+      if (error instanceof NotFound) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   buildPublicUrl(key: string): string {
@@ -82,5 +88,15 @@ export class StorageService {
 
   isOwnPublicUrl(url: string): boolean {
     return !!this.publicUrl && url.startsWith(this.publicUrl.replace(/\/$/, ''));
+  }
+
+  private requireClient(): { client: S3Client; bucketName: string } {
+    if (!this.s3Client || !this.bucketName) {
+      throw new Error(
+        'File upload is not configured. Please set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME.',
+      );
+    }
+
+    return { client: this.s3Client, bucketName: this.bucketName };
   }
 }

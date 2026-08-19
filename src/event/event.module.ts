@@ -10,5 +10,6 @@ import { EventService } from './event.service';
   imports: [PrismaModule, StorageModule, PhotographerModule],
   controllers: [EventController],
   providers: [EventService, EventRepository],
+  exports: [EventService],
 })
 export class EventModule {}

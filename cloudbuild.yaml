@@ -4,9 +4,9 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
+      - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
       - '-t'
-      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
+      - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
       - '.'
     id: Build
 
@@ -14,14 +14,14 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
+      - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
     id: Push
 
   # Push image (latest tag)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
+      - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
     id: PushLatest
 
   # Deploy to Cloud Run
@@ -37,19 +37,20 @@ steps:
       - 'run'
       - 'deploy'
       - '$_SERVICE_NAME'
-      - '--image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
+      - '--image=$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
       - '--region=$_DEPLOY_REGION'
       - '--platform=$_PLATFORM'
       - '--set-env-vars=DATABASE_URL=$_DATABASE_URL,FIREBASE_PROJECT_ID=$_FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL=$_FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY=$_FIREBASE_PRIVATE_KEY,R2_ACCESS_KEY_ID=$_R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY=$_R2_SECRET_ACCESS_KEY,R2_BUCKET_NAME=$_R2_BUCKET_NAME,R2_ENDPOINT=$_R2_ENDPOINT,R2_PUBLIC_URL=$_R2_PUBLIC_URL,CRON_SECRET=$_CRON_SECRET,CLIENT_URL=$_CLIENT_URL'
     id: Deploy
 
 images:
-  - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
-  - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
+  - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
+  - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
 
 substitutions:
   _AR_HOSTNAME: 'LOCATION-docker.pkg.dev'
-  _AR_PROJECT_ID: 'PROJECT_ID'
+  # PROJECT_ID is NOT listed here — it's a Cloud Build built-in variable (auto-filled from
+  # whichever project the trigger runs in), referenced directly as $PROJECT_ID above.
   _AR_REPOSITORY: 'REPOSITORY_NAME'
   _SERVICE_NAME: 'framed-backend'
   _DEPLOY_REGION: 'REGION'

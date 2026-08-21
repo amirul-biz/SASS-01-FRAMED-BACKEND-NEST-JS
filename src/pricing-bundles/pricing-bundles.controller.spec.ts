@@ -50,7 +50,7 @@ describe('PricingBundlesController', () => {
   afterEach(async () => {
     await app.close();
   });
-
+// .
   it('GET /pricing-bundles passes the guard-derived photographer id to the service', async () => {
     service.list.mockResolvedValue([]);
 

@@ -48,12 +48,12 @@ images:
   - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
 
 substitutions:
-  _AR_HOSTNAME: 'LOCATION-docker.pkg.dev'
+  _AR_HOSTNAME: 'asia-southeast1-docker.pkg.dev'
   # PROJECT_ID is NOT listed here — it's a Cloud Build built-in variable (auto-filled from
   # whichever project the trigger runs in), referenced directly as $PROJECT_ID above.
-  _AR_REPOSITORY: 'REPOSITORY_NAME'
+  _AR_REPOSITORY: 'picsweep-repository'
   _SERVICE_NAME: 'framed-backend'
-  _DEPLOY_REGION: 'REGION'
+  _DEPLOY_REGION: 'asia-southeast1'
   _PLATFORM: 'managed'
   # Runtime env vars — empty by default (build fails fast rather than silently deploying
   # with blank config if you forget one). Set real values per-trigger/per-environment via

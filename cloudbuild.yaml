@@ -1,0 +1,57 @@
+steps:
+  # Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
+      - '-t'
+      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
+      - '.'
+    id: Build
+
+  # Push image (commit SHA tag)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
+    id: Push
+
+  # Push image (latest tag)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
+    id: PushLatest
+
+  # Deploy to Cloud Run
+  # DATABASE_URL / Firebase Admin / R2 credentials / CRON_SECRET / CLIENT_URL are runtime
+  # env vars (see .env.example) — set them on the Cloud Run service (console, `gcloud run
+  # deploy --set-env-vars`, or Secret Manager), not baked into the image at build time.
+  # CLIENT_URL in particular must be this environment's actual deployed frontend origin
+  # (e.g. https://framed-frontend-xyz.run.app) — CORS is wide open if it's left unset.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - '$_SERVICE_NAME'
+      - '--image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
+      - '--region=$_DEPLOY_REGION'
+      - '--platform=$_PLATFORM'
+    id: Deploy
+
+images:
+  - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA'
+  - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
+
+substitutions:
+  _AR_HOSTNAME: 'LOCATION-docker.pkg.dev'
+  _AR_PROJECT_ID: 'PROJECT_ID'
+  _AR_REPOSITORY: 'REPOSITORY_NAME'
+  _SERVICE_NAME: 'framed-backend'
+  _DEPLOY_REGION: 'REGION'
+  _PLATFORM: 'managed'
+
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET

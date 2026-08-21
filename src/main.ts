@@ -12,7 +12,7 @@ async function bootstrap() {
     module.hot.accept();
     module.hot.dispose(() => app.close());
   }
-  app.enableCors();
+  app.enableCors({ origin: process.env.CLIENT_URL });
   app.useGlobalPipes(new ValidationPipe());
   const config = new DocumentBuilder()
     .setTitle('Framed API DOCS')

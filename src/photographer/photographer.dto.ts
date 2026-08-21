@@ -1,11 +1,14 @@
 import {
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   MinLength,
   IsBoolean,
   IsDate,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -91,6 +94,11 @@ export class PhotographerProfileResponseDto {
   @IsString()
   @IsOptional()
   contactNo!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  profileImageUrl!: string | null;
   @ApiProperty() @Type(() => Date) @IsDate() createdAt!: Date;
   @ApiProperty() @Type(() => Date) @IsDate() updatedAt!: Date;
 }
@@ -122,6 +130,42 @@ export class UpdatePhotographerProfileDto {
   @IsString({ message: 'Contact number must be a string' })
   @IsOptional()
   contactNo?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/photographer-profiles/abc/xyz.jpg',
+  })
+  @IsUrl({}, { message: 'Profile image URL must be a valid URL' })
+  @IsOptional()
+  profileImageUrl?: string;
+}
+
+const ALLOWED_PROFILE_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
+
+export class PresignProfileImageUploadDto {
+  @ApiProperty({ example: 'headshot.jpg' })
+  @IsString({ message: 'File name must be a string' })
+  @IsNotEmpty({ message: 'File name is required' })
+  fileName!: string;
+
+  @ApiProperty({
+    example: 'image/jpeg',
+    enum: ALLOWED_PROFILE_IMAGE_MIME_TYPES,
+  })
+  @IsIn(ALLOWED_PROFILE_IMAGE_MIME_TYPES, {
+    message: `Mime type must be one of: ${ALLOWED_PROFILE_IMAGE_MIME_TYPES.join(', ')}`,
+  })
+  mimeType!: string;
+}
+
+export class PresignProfileImageUploadResponseDto {
+  @ApiProperty() @IsString() uploadUrl!: string;
+  @ApiProperty() @IsString() publicUrl!: string;
+  @ApiProperty() @IsString() key!: string;
+  @ApiProperty() @IsNumber() expiresIn!: number;
 }
 
 export class RegisterPhotographerDataDto {

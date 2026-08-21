@@ -1,18 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
+import { UserRole } from '../../generated/prisma/enums';
+import type { PhotographerProfile } from '../../generated/prisma/client';
+import type { UpdatePhotographerProfileDto } from './photographer.dto';
+import type {
+  CreatePhotographerProfileData,
+  CreatePhotographerProfileResult,
+} from './photographer.interface';
 
 @Injectable()
 export class PhotographerRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createPhotographerWithTransaction(data: {
-    firebaseId: string;
-    email: string;
-    name: string;
-    bio?: string;
-    companyName?: string;
-    phone?: string;
-  }) {
+  async createPhotographerWithTransaction(
+    data: CreatePhotographerProfileData,
+  ): Promise<CreatePhotographerProfileResult> {
     return await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -24,7 +26,7 @@ export class PhotographerRepository {
       const userPlatform = await tx.userPlatform.create({
         data: {
           userId: user.id,
-          role: 'PHOTOGRAPHER',
+          role: UserRole.PHOTOGRAPHER,
         },
       });
 
@@ -42,7 +44,9 @@ export class PhotographerRepository {
     });
   }
 
-  async findProfileByUserPlatformId(userPlatformId: string) {
+  async getProfileByUserPlatformId(
+    userPlatformId: string,
+  ): Promise<PhotographerProfile | null> {
     return await this.prisma.photographerProfile.findUnique({
       where: { userPlatformId },
     });
@@ -50,14 +54,8 @@ export class PhotographerRepository {
 
   async updateProfileByUserPlatformId(
     userPlatformId: string,
-    data: {
-      name?: string;
-      bio?: string;
-      companyName?: string;
-      phone?: string;
-      contactNo?: string;
-    },
-  ) {
+    data: UpdatePhotographerProfileDto,
+  ): Promise<PhotographerProfile> {
     return await this.prisma.photographerProfile.update({
       where: { userPlatformId },
       data: {
@@ -68,6 +66,9 @@ export class PhotographerRepository {
         }),
         ...(data.phone !== undefined && { phone: data.phone }),
         ...(data.contactNo !== undefined && { contactNo: data.contactNo }),
+        ...(data.profileImageUrl !== undefined && {
+          profileImageUrl: data.profileImageUrl,
+        }),
       },
     });
   }

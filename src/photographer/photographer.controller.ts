@@ -15,6 +15,8 @@ import {
 import { type Express } from 'express';
 import {
   PhotographerProfileResponseDto,
+  PresignProfileImageUploadDto,
+  PresignProfileImageUploadResponseDto,
   RegisterPhotographerInputDto,
   RegisterPhotographerOutputDto,
   UpdatePhotographerProfileDto,
@@ -27,7 +29,7 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { FirebaseAuthGuard } from 'src/common/guards/firebase-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { UserRole } from '../../generated/prisma/enums';
-import type { User, UserPlatform } from '../../generated/prisma/client';
+import type { AuthenticatedUser } from '../types/express';
 
 @Controller('photographer')
 export class PhotographerController {
@@ -72,12 +74,24 @@ export class PhotographerController {
     return { accepted: true, fileCount: files.length };
   }
 
+  @Post('profile/image/presign')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async presignProfileImageUpload(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: PresignProfileImageUploadDto,
+  ): Promise<PresignProfileImageUploadResponseDto> {
+    return await this.photographerService.presignProfileImageUpload(user, dto);
+  }
+
   @Get('profile')
   @ApiBearerAuth()
   @UseGuards(FirebaseAuthGuard, RolesGuard)
   @Roles(UserRole.PHOTOGRAPHER)
   async getMyProfile(
-    @CurrentUser() user: User & { userPlatforms: UserPlatform[] },
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<PhotographerProfileResponseDto> {
     return await this.photographerService.getMyProfile(user);
   }
@@ -88,7 +102,7 @@ export class PhotographerController {
   @Roles(UserRole.PHOTOGRAPHER)
   @UsePipes(new ValidationPipe({ transform: true }))
   async updateMyProfile(
-    @CurrentUser() user: User & { userPlatforms: UserPlatform[] },
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdatePhotographerProfileDto,
   ): Promise<PhotographerProfileResponseDto> {
     return await this.photographerService.updateMyProfile(user, dto);

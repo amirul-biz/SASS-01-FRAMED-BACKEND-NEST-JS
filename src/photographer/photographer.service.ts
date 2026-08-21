@@ -1,29 +1,24 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
 import { FirebaseService } from '../config/firebase/firebase.service';
 import { StorageService } from '../config/storage/storage.service';
-import {
-  ATTACHMENT_UPLOADED_EVENT_PATTERN,
-  UPLOAD_ATTACHMENT_QUEUE_CLIENT,
-} from '../config/queue/attachment-queue.constants';
-import { AttachmentUploadedEvent } from '../config/queue/attachment-uploaded.event';
-import type { User, UserPlatform } from '../../generated/prisma/client';
+import { UserRole } from '../../generated/prisma/enums';
+import type { AuthenticatedUser } from '../types/express';
+import { randomUUID } from 'crypto';
+import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
 import {
   PhotographerProfileResponseDto,
+  PresignProfileImageUploadDto,
+  PresignProfileImageUploadResponseDto,
   RegisterPhotographerInputDto,
   RegisterPhotographerOutputDto,
   UpdatePhotographerProfileDto,
 } from './photographer.dto';
 import { PhotographerRepository } from './photographer.repository';
-
-type AuthenticatedUser = User & { userPlatforms: UserPlatform[] };
 
 @Injectable()
 export class PhotographerService {
@@ -33,8 +28,6 @@ export class PhotographerService {
     private readonly firebaseService: FirebaseService,
     private readonly photographerRepository: PhotographerRepository,
     private readonly storageService: StorageService,
-    @Inject(UPLOAD_ATTACHMENT_QUEUE_CLIENT)
-    private readonly attachmentQueueClient: ClientProxy,
   ) {}
 
   async registerPhotographer(
@@ -78,19 +71,13 @@ export class PhotographerService {
     }
 
     // Sequential on purpose: a large batch shouldn't fire hundreds of
-    // concurrent R2 uploads and queue publishes at once.
+    // concurrent R2 uploads at once.
     for (const file of files) {
       try {
-        const key = await this.storageService.uploadFile({
+        await this.storageService.uploadFile({
           originalName: file.originalname,
           mimeType: file.mimetype,
           buffer: file.buffer,
-        });
-        await this.publishAttachmentUploaded({
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          sizeBytes: file.size,
-          key,
         });
       } catch (error) {
         this.logger.error(
@@ -100,20 +87,12 @@ export class PhotographerService {
     }
   }
 
-  private async publishAttachmentUploaded(
-    event: AttachmentUploadedEvent,
-  ): Promise<void> {
-    await firstValueFrom(
-      this.attachmentQueueClient.emit(ATTACHMENT_UPLOADED_EVENT_PATTERN, event),
-    );
-  }
-
   async getMyProfile(
     user: AuthenticatedUser,
   ): Promise<PhotographerProfileResponseDto> {
     const userPlatformId = this.getOwnPhotographerPlatformId(user);
     const profile =
-      await this.photographerRepository.findProfileByUserPlatformId(
+      await this.photographerRepository.getProfileByUserPlatformId(
         userPlatformId,
       );
 
@@ -128,6 +107,13 @@ export class PhotographerService {
     user: AuthenticatedUser,
     dto: UpdatePhotographerProfileDto,
   ): Promise<PhotographerProfileResponseDto> {
+    if (
+      dto.profileImageUrl !== undefined &&
+      !this.storageService.isOwnPublicUrl(dto.profileImageUrl)
+    ) {
+      throw new BadRequestException('Invalid profile image URL');
+    }
+
     const userPlatformId = this.getOwnPhotographerPlatformId(user);
     return await this.photographerRepository.updateProfileByUserPlatformId(
       userPlatformId,
@@ -135,9 +121,41 @@ export class PhotographerService {
     );
   }
 
+  async presignProfileImageUpload(
+    user: AuthenticatedUser,
+    dto: PresignProfileImageUploadDto,
+  ): Promise<PresignProfileImageUploadResponseDto> {
+    const userPlatformId = this.getOwnPhotographerPlatformId(user);
+    const sanitizedFileName = sanitizeFileName(dto.fileName);
+    const key = `photographer-profiles/${userPlatformId}/${randomUUID()}-${sanitizedFileName}`;
+    const expiresIn = 300;
+
+    const uploadUrl = await this.storageService.getPresignedUploadUrl({
+      key,
+      mimeType: dto.mimeType,
+    });
+    const publicUrl = this.storageService.buildPublicUrl(key);
+
+    return { uploadUrl, publicUrl, key, expiresIn };
+  }
+
+  async getOwnPhotographerProfileId(user: AuthenticatedUser): Promise<string> {
+    const userPlatformId = this.getOwnPhotographerPlatformId(user);
+    const profile =
+      await this.photographerRepository.getProfileByUserPlatformId(
+        userPlatformId,
+      );
+
+    if (!profile) {
+      throw new NotFoundException('Photographer profile not found');
+    }
+
+    return profile.id;
+  }
+
   private getOwnPhotographerPlatformId(user: AuthenticatedUser): string {
     const photographerPlatform = user.userPlatforms.find(
-      (platform) => platform.role === 'PHOTOGRAPHER',
+      (platform) => platform.role === UserRole.PHOTOGRAPHER,
     );
 
     if (!photographerPlatform) {

@@ -1,0 +1,5 @@
+export const EVENT_PAGINATION = {
+  DEFAULT_PAGE_NUMBER: 1,
+  DEFAULT_PAGE_SIZE: 10,
+  PAGE_SIZE_MAX: 100,
+} as const;

@@ -69,6 +69,7 @@ model PhotographerProfile {
   phone           String?
   contactNo       String?      @map("contact_no")
   profileImageUrl String?      @map("profile_image_url")
+  bannerUrl       String?      @map("banner_url")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
@@ -137,12 +138,12 @@ model AdminProfile {
 
 // ############################################################
 model PricingOption {
-  id  String  @id @default(uuid())
-  photographerId  String @map("photographer_id")
-  label String
-  price Decimal @db.Decimal(10,2)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt  @map("updated_at")
+  id             String   @id @default(uuid())
+  photographerId String   @map("photographer_id")
+  label          String
+  price          Decimal  @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   bundles BundlePricingOption[]
 
@@ -195,16 +196,16 @@ model BundlePricingOption {
 }
 
 model PricingBundle {
-  id  String  @id @default(uuid())
-  photographerId  String  @map("photographer_id")
-  name  String
-  fullGalleryEnabled  Boolean @default(false) @map("full_gallery_enabled")
-  fullGalleryPrice  Decimal @default(0) @db.Decimal(10,2) @map("full_gallery_price")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt  @map("updated_at")
+  id                 String   @id @default(uuid())
+  photographerId     String   @map("photographer_id")
+  name               String
+  fullGalleryEnabled Boolean  @default(false) @map("full_gallery_enabled")
+  fullGalleryPrice   Decimal  @default(0) @map("full_gallery_price") @db.Decimal(10, 2)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
-  events EventPricingBundle[]
-  vouchers BundleVoucher[]
+  events         EventPricingBundle[]
+  vouchers       BundleVoucher[]
   pricingOptions BundlePricingOption[]
 
   @@index([photographerId], map: "idx_pricing_bundles_photographer")
@@ -212,13 +213,12 @@ model PricingBundle {
 }
 
 model EventPricingBundle {
-  eventId String @map("event_id")
+  eventId         String @map("event_id")
   pricingBundleId String @map("pricing_bundle_id")
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   pricingBundle PricingBundle @relation(fields: [pricingBundleId], references: [id], onDelete: Restrict)
 
   @@id([eventId, pricingBundleId])
   @@map("event_pricing_bundles")
 }
-

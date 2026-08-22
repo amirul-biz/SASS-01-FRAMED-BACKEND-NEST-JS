@@ -114,6 +114,13 @@ export class PhotographerService {
       throw new BadRequestException('Invalid profile image URL');
     }
 
+    if (
+      dto.bannerUrl !== undefined &&
+      !this.storageService.isOwnPublicUrl(dto.bannerUrl)
+    ) {
+      throw new BadRequestException('Invalid banner URL');
+    }
+
     const userPlatformId = this.getOwnPhotographerPlatformId(user);
     return await this.photographerRepository.updateProfileByUserPlatformId(
       userPlatformId,
@@ -128,6 +135,24 @@ export class PhotographerService {
     const userPlatformId = this.getOwnPhotographerPlatformId(user);
     const sanitizedFileName = sanitizeFileName(dto.fileName);
     const key = `photographer-profiles/${userPlatformId}/${randomUUID()}-${sanitizedFileName}`;
+    const expiresIn = 300;
+
+    const uploadUrl = await this.storageService.getPresignedUploadUrl({
+      key,
+      mimeType: dto.mimeType,
+    });
+    const publicUrl = this.storageService.buildPublicUrl(key);
+
+    return { uploadUrl, publicUrl, key, expiresIn };
+  }
+
+  async presignProfileBannerUpload(
+    user: AuthenticatedUser,
+    dto: PresignProfileImageUploadDto,
+  ): Promise<PresignProfileImageUploadResponseDto> {
+    const userPlatformId = this.getOwnPhotographerPlatformId(user);
+    const sanitizedFileName = sanitizeFileName(dto.fileName);
+    const key = `photographer-profiles/${userPlatformId}/banner/${randomUUID()}-${sanitizedFileName}`;
     const expiresIn = 300;
 
     const uploadUrl = await this.storageService.getPresignedUploadUrl({

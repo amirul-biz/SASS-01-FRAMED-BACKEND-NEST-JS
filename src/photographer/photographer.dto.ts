@@ -99,6 +99,11 @@ export class PhotographerProfileResponseDto {
   @IsString()
   @IsOptional()
   profileImageUrl!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  bannerUrl!: string | null;
   @ApiProperty() @Type(() => Date) @IsDate() createdAt!: Date;
   @ApiProperty() @Type(() => Date) @IsDate() updatedAt!: Date;
 }
@@ -137,6 +142,13 @@ export class UpdatePhotographerProfileDto {
   @IsUrl({}, { message: 'Profile image URL must be a valid URL' })
   @IsOptional()
   profileImageUrl?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/photographer-profiles/abc/banner.jpg',
+  })
+  @IsUrl({}, { message: 'Banner URL must be a valid URL' })
+  @IsOptional()
+  bannerUrl?: string;
 }
 
 const ALLOWED_PROFILE_IMAGE_MIME_TYPES = [

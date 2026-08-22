@@ -69,6 +69,7 @@ export class PhotographerRepository {
         ...(data.profileImageUrl !== undefined && {
           profileImageUrl: data.profileImageUrl,
         }),
+        ...(data.bannerUrl !== undefined && { bannerUrl: data.bannerUrl }),
       },
     });
   }

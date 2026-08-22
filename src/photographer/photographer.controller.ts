@@ -86,6 +86,18 @@ export class PhotographerController {
     return await this.photographerService.presignProfileImageUpload(user, dto);
   }
 
+  @Post('profile/banner/presign')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async presignProfileBannerUpload(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: PresignProfileImageUploadDto,
+  ): Promise<PresignProfileImageUploadResponseDto> {
+    return await this.photographerService.presignProfileBannerUpload(user, dto);
+  }
+
   @Get('profile')
   @ApiBearerAuth()
   @UseGuards(FirebaseAuthGuard, RolesGuard)

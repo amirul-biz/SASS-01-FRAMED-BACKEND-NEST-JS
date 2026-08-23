@@ -1,8 +1,47 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
-import type { Event } from '../../generated/prisma/client';
+import type { Event, Prisma } from '../../generated/prisma/client';
 import type { CreateEventDto } from './event.dto';
-import type { PaginatedEvents, UpdateEventRepositoryData } from './event.interface';
+import type {
+  LatestPublishedEvent,
+  PaginatedEvents,
+  UpdateEventRepositoryData,
+} from './event.interface';
+
+const PUBLISHED_EVENT_CARD_SELECT = {
+  id: true,
+  title: true,
+  category: true,
+  location: true,
+  coverPhotoUrl: true,
+  eventStartDate: true,
+  eventEndDate: true,
+  photographerProfile: { select: { id: true, name: true } },
+  _count: {
+    select: { photos: { where: { status: 'UPLOADED', deletedAt: null } } },
+  },
+} satisfies Prisma.EventSelect;
+
+type PublishedEventCardRow = Prisma.EventGetPayload<{
+  select: typeof PUBLISHED_EVENT_CARD_SELECT;
+}>;
+
+function toLatestPublishedEvent(
+  event: PublishedEventCardRow,
+): LatestPublishedEvent {
+  return {
+    id: event.id,
+    title: event.title,
+    category: event.category,
+    location: event.location,
+    coverPhotoUrl: event.coverPhotoUrl,
+    eventStartDate: event.eventStartDate,
+    eventEndDate: event.eventEndDate,
+    photoCount: event._count.photos,
+    photographerId: event.photographerProfile.id,
+    photographerName: event.photographerProfile.name,
+  };
+}
 
 @Injectable()
 export class EventRepository {
@@ -76,5 +115,55 @@ export class EventRepository {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async getLatestPublished(limit: number): Promise<LatestPublishedEvent[]> {
+    const events = await this.prisma.event.findMany({
+      where: { isPublished: true, deletedAt: null },
+      orderBy: { publishedAt: 'desc' },
+      take: limit,
+      select: PUBLISHED_EVENT_CARD_SELECT,
+    });
+
+    return events.map(toLatestPublishedEvent);
+  }
+
+  async getPublishedList(filters: {
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    photographerId?: string;
+    skip: number;
+    take: number;
+  }): Promise<PaginatedEvents<LatestPublishedEvent>> {
+    const where = {
+      isPublished: true,
+      deletedAt: null,
+      ...(filters.search && {
+        title: { contains: filters.search, mode: 'insensitive' as const },
+      }),
+      ...(filters.photographerId && { photographerId: filters.photographerId }),
+      // Overlap check: an event matches if any part of its date range falls
+      // within [dateFrom, dateTo] — either bound alone still narrows correctly.
+      ...(filters.dateFrom && {
+        eventEndDate: { gte: new Date(`${filters.dateFrom}T00:00:00.000Z`) },
+      }),
+      ...(filters.dateTo && {
+        eventStartDate: { lte: new Date(`${filters.dateTo}T23:59:59.999Z`) },
+      }),
+    };
+
+    const [events, totalItemCount] = await this.prisma.$transaction([
+      this.prisma.event.findMany({
+        where,
+        orderBy: { publishedAt: 'desc' },
+        skip: filters.skip,
+        take: filters.take,
+        select: PUBLISHED_EVENT_CARD_SELECT,
+      }),
+      this.prisma.event.count({ where }),
+    ]);
+
+    return { items: events.map(toLatestPublishedEvent), totalItemCount };
   }
 }

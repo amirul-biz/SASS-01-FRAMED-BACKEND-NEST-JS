@@ -19,6 +19,10 @@ import {
   UpdatePhotographerProfileDto,
 } from './photographer.dto';
 import { PhotographerRepository } from './photographer.repository';
+import type {
+  PublicPhotographerProfile,
+  TopPhotographerByEventCount,
+} from './photographer.interface';
 
 @Injectable()
 export class PhotographerService {
@@ -162,6 +166,27 @@ export class PhotographerService {
     const publicUrl = this.storageService.buildPublicUrl(key);
 
     return { uploadUrl, publicUrl, key, expiresIn };
+  }
+
+  async getTopPhotographersByEventCount(
+    limit: number,
+  ): Promise<TopPhotographerByEventCount[]> {
+    return await this.photographerRepository.getPublicList({ limit });
+  }
+
+  async searchPublicPhotographers(
+    search: string | undefined,
+    limit: number,
+  ): Promise<TopPhotographerByEventCount[]> {
+    return await this.photographerRepository.getPublicList({ search, limit });
+  }
+
+  async getPublicProfile(id: string): Promise<PublicPhotographerProfile> {
+    const profile = await this.photographerRepository.getPublicProfileById(id);
+    if (!profile) {
+      throw new NotFoundException('Photographer not found');
+    }
+    return profile;
   }
 
   async getOwnPhotographerProfileId(user: AuthenticatedUser): Promise<string> {

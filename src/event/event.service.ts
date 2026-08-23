@@ -14,6 +14,7 @@ import {
   UpdateEventDto,
 } from './event.dto';
 import { EventRepository } from './event.repository';
+import type { LatestPublishedEvent, PaginatedEvents } from './event.interface';
 
 const DATE_RANGE_CHECK_CONSTRAINT = 'events_date_range_check';
 
@@ -104,6 +105,29 @@ export class EventService {
     const publicUrl = this.storageService.buildPublicUrl(key);
 
     return { uploadUrl, publicUrl, key, expiresIn };
+  }
+
+  async getLatestPublishedEvents(limit: number): Promise<LatestPublishedEvent[]> {
+    return await this.eventRepository.getLatestPublished(limit);
+  }
+
+  async getPublishedEventList(filters: {
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    photographerId?: string;
+    pageNumber: number;
+    pageSize: number;
+  }): Promise<PaginatedEvents<LatestPublishedEvent>> {
+    const skip = (filters.pageNumber - 1) * filters.pageSize;
+    return await this.eventRepository.getPublishedList({
+      search: filters.search,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      photographerId: filters.photographerId,
+      skip,
+      take: filters.pageSize,
+    });
   }
 
   private async getOwnedEventOrThrow(

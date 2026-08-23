@@ -17,7 +17,7 @@ import {
 } from './photo.dto';
 import { PhotoRepository } from './photo.repository';
 
-const PRESIGN_EXPIRES_IN_SECONDS = 300;
+const PRESIGN_EXPIRES_IN_SECONDS = 1800;
 
 @Injectable()
 export class PhotoService {
@@ -41,6 +41,7 @@ export class PhotoService {
         const uploadUrl = await this.storageService.getPresignedUploadUrl({
           key,
           mimeType: file.mimeType,
+          expiresIn: PRESIGN_EXPIRES_IN_SECONDS,
         });
 
         return {
@@ -110,6 +111,7 @@ export class PhotoService {
     const uploadUrl = await this.storageService.getPresignedUploadUrl({
       key: photo.key,
       mimeType: dto.mimeType,
+      expiresIn: PRESIGN_EXPIRES_IN_SECONDS,
     });
     const updated = await this.photoRepository.updateStatus(photo.id, { status: 'PENDING' });
 

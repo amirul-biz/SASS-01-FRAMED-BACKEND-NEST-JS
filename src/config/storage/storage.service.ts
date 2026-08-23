@@ -52,6 +52,7 @@ export class StorageService {
   async getPresignedUploadUrl(params: {
     key: string;
     mimeType: string;
+    expiresIn?: number;
   }): Promise<string> {
     const { client, bucketName } = this.requireClient();
 
@@ -61,7 +62,7 @@ export class StorageService {
       ContentType: params.mimeType,
     });
 
-    return await getSignedUrl(client, command, { expiresIn: 300 });
+    return await getSignedUrl(client, command, { expiresIn: params.expiresIn ?? 300 });
   }
 
   async objectExists(key: string): Promise<boolean> {

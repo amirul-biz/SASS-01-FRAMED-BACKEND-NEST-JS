@@ -17,6 +17,11 @@ export class OrderRepository {
     });
   }
 
+  async voucherExists(voucherId: string): Promise<boolean> {
+    const count = await this.prisma.voucher.count({ where: { id: voucherId } });
+    return count > 0;
+  }
+
   async create(dto: CreateOrderDto) {
     return await this.prisma.order.create({
       data: {
@@ -27,6 +32,12 @@ export class OrderRepository {
         subtotal: dto.subtotal,
         discountAmount: dto.discountAmount,
         total: dto.total,
+        priceBreakdown: {
+          subtotal: dto.subtotal,
+          discountAmount: dto.discountAmount,
+          total: dto.total,
+        },
+        voucherId: dto.voucherId ?? null,
         voucherName: dto.voucherName,
         items: {
           create: dto.items.map((item) => ({

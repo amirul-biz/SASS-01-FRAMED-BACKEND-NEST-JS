@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { EventService } from '../event/event.service';
-import { CreateOrderDto, OrderResponseDto } from './order.dto';
+import { CreateOrderDto, OrderResponseDto, PriceBreakdownDto } from './order.dto';
 import { OrderRepository } from './order.repository';
 
 @Injectable()
@@ -21,6 +21,10 @@ export class OrderService {
       throw new BadRequestException('One or more photos do not belong to this event');
     }
 
+    if (dto.voucherId && !(await this.orderRepository.voucherExists(dto.voucherId))) {
+      throw new BadRequestException('Unknown voucher');
+    }
+
     const order = await this.orderRepository.create(dto);
 
     return {
@@ -32,6 +36,8 @@ export class OrderService {
       subtotal: Number(order.subtotal),
       discountAmount: Number(order.discountAmount),
       total: Number(order.total),
+      priceBreakdown: order.priceBreakdown as unknown as PriceBreakdownDto,
+      voucherId: order.voucherId,
       voucherName: order.voucherName,
       status: order.status,
       createdAt: order.createdAt,

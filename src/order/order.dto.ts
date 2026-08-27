@@ -2,15 +2,17 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { OrderStatus } from '../../generated/prisma/enums';
+import { CountryCode, OrderStatus } from '../../generated/prisma/enums';
 
 export class CreateOrderItemDto {
   @ApiProperty({ example: 'e91a5108-699c-4fd8-8ef9-98f0813de6a2' })
@@ -39,10 +41,9 @@ export class CreateOrderDto {
   @IsEmail({}, { message: 'A valid email is required' })
   email!: string;
 
-  @ApiProperty({ example: '+60' })
-  @IsString()
-  @IsNotEmpty({ message: 'countryCode is required' })
-  countryCode!: string;
+  @ApiProperty({ enum: CountryCode, example: CountryCode.MALAYSIA })
+  @IsEnum(CountryCode, { message: 'countryCode must be one of: MALAYSIA, SINGAPORE' })
+  countryCode!: CountryCode;
 
   @ApiProperty({ example: '12 345 6789' })
   @IsString()
@@ -70,6 +71,11 @@ export class CreateOrderDto {
   @Min(0)
   total!: number;
 
+  @ApiPropertyOptional({ example: '9d96e851-1f27-4b39-a3dd-caaba639eb39' })
+  @IsUUID()
+  @IsOptional()
+  voucherId?: string;
+
   @ApiPropertyOptional({ example: 'Standard Voucher' })
   @IsString()
   @IsOptional()
@@ -83,15 +89,27 @@ export class OrderItemResponseDto {
   @ApiProperty() @IsNumber() price!: number;
 }
 
+export class PriceBreakdownDto {
+  @ApiProperty() @IsNumber() subtotal!: number;
+  @ApiProperty() @IsNumber() discountAmount!: number;
+  @ApiProperty() @IsNumber() total!: number;
+}
+
 export class OrderResponseDto {
   @ApiProperty() @IsString() id!: string;
   @ApiProperty() @IsString() eventId!: string;
   @ApiProperty() @IsString() email!: string;
-  @ApiProperty() @IsString() countryCode!: string;
+  @ApiProperty({ enum: CountryCode }) countryCode!: CountryCode;
   @ApiProperty() @IsString() phone!: string;
   @ApiProperty() @IsNumber() subtotal!: number;
   @ApiProperty() @IsNumber() discountAmount!: number;
   @ApiProperty() @IsNumber() total!: number;
+  @ApiProperty({ type: PriceBreakdownDto }) priceBreakdown!: PriceBreakdownDto;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  voucherId!: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsString()

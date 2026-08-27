@@ -53,13 +53,13 @@ substitutions:
   # PROJECT_ID is NOT listed here — it's a Cloud Build built-in variable (auto-filled from
   # whichever project the trigger runs in), referenced directly as $PROJECT_ID above.
   _AR_REPOSITORY: 'picsweep-repository'
-  _SERVICE_NAME: 'framed-backend'
   _DEPLOY_REGION: 'asia-southeast1'
   _PLATFORM: 'managed'
-  # Runtime env vars — empty by default (build fails fast rather than silently deploying
-  # with blank config if you forget one). Set real values per-trigger/per-environment via
-  # --substitutions or the trigger's UI; never commit real values here (git history is
-  # forever, worse than a build log).
+  # _SERVICE_NAME and the runtime env vars below are empty by default (build fails fast
+  # rather than silently deploying with blank/wrong config if you forget one). Set real
+  # values per-trigger/per-environment via --substitutions or the trigger's UI; never
+  # commit real values here (git history is forever, worse than a build log).
+  _SERVICE_NAME: ''
   _DATABASE_URL: ''
   _FIREBASE_PROJECT_ID: ''
   _FIREBASE_CLIENT_EMAIL: ''

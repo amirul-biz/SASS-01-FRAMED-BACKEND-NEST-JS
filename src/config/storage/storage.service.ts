@@ -12,7 +12,7 @@ export interface UploadableFile {
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
   private readonly s3Client?: S3Client;
-  private readonly bucketName = process.env.R2_BUCKET_NAME;
+  private readonly bucketName = process.env.R2_PRIVATE_BUCKET_NAME;
   private readonly publicUrl = process.env.R2_PUBLIC_URL;
 
   constructor() {
@@ -94,7 +94,7 @@ export class StorageService {
   private requireClient(): { client: S3Client; bucketName: string } {
     if (!this.s3Client || !this.bucketName) {
       throw new Error(
-        'File upload is not configured. Please set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME.',
+        'File upload is not configured. Please set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_PRIVATE_BUCKET_NAME.',
       );
     }
 

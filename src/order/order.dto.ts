@@ -3,16 +3,19 @@ import {
   ArrayMinSize,
   IsEmail,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CountryCode, OrderStatus } from '../../generated/prisma/enums';
+import { ORDER_PAGINATION } from './order.constants';
 
 export class CreateOrderItemDto {
   @ApiProperty({ example: 'e91a5108-699c-4fd8-8ef9-98f0813de6a2' })
@@ -122,4 +125,57 @@ export class OrderResponseDto {
   @ApiProperty({ type: [OrderItemResponseDto] })
   @Type(() => OrderItemResponseDto)
   items!: OrderItemResponseDto[];
+}
+
+export class OrderListQueryDto {
+  @ApiPropertyOptional({ example: ORDER_PAGINATION.DEFAULT_PAGE_NUMBER })
+  @Type(() => Number)
+  @IsInt({ message: 'pageNumber must be an integer' })
+  @Min(1, { message: 'pageNumber must be at least 1' })
+  @IsOptional()
+  pageNumber: number = ORDER_PAGINATION.DEFAULT_PAGE_NUMBER;
+
+  @ApiPropertyOptional({ example: ORDER_PAGINATION.DEFAULT_PAGE_SIZE })
+  @Type(() => Number)
+  @IsInt({ message: 'pageSize must be an integer' })
+  @Min(1, { message: 'pageSize must be at least 1' })
+  @Max(ORDER_PAGINATION.PAGE_SIZE_MAX, {
+    message: `pageSize must be at most ${ORDER_PAGINATION.PAGE_SIZE_MAX}`,
+  })
+  @IsOptional()
+  pageSize: number = ORDER_PAGINATION.DEFAULT_PAGE_SIZE;
+
+  @ApiPropertyOptional({ example: '9d96e851-1f27-4b39-a3dd-caaba639eb39' })
+  @IsUUID()
+  @IsOptional()
+  eventId?: string;
+
+  @ApiPropertyOptional({ enum: OrderStatus })
+  @IsEnum(OrderStatus)
+  @IsOptional()
+  status?: OrderStatus;
+}
+
+export class PhotographerOrderDto extends OrderResponseDto {
+  @ApiProperty() @IsString() eventTitle!: string;
+}
+
+export class OrderSummaryDto {
+  @ApiProperty() @IsInt() totalOrders!: number;
+  @ApiProperty() @IsNumber() totalRevenue!: number;
+}
+
+export class PaginatedOrderListResponseDto {
+  @ApiProperty({ type: [PhotographerOrderDto] })
+  @Type(() => PhotographerOrderDto)
+  items!: PhotographerOrderDto[];
+
+  @ApiProperty() @IsInt() totalItemCount!: number;
+  @ApiProperty() @IsInt() totalPageCount!: number;
+  @ApiProperty() @IsInt() pageNumber!: number;
+  @ApiProperty() @IsInt() pageSize!: number;
+
+  @ApiProperty({ type: OrderSummaryDto })
+  @Type(() => OrderSummaryDto)
+  summary!: OrderSummaryDto;
 }

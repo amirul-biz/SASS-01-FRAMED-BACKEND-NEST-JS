@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsDate,
   IsDateString,
@@ -55,6 +56,12 @@ export class CreateEventDto {
   @IsUrl({}, { message: 'Cover photo URL must be a valid URL' })
   @IsOptional()
   coverPhotoUrl?: string;
+
+  @ApiPropertyOptional({ type: [String], example: ['bundle-1', 'bundle-2'] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  pricingBundleIds?: string[];
 }
 
 export class UpdateEventDto {
@@ -101,6 +108,12 @@ export class UpdateEventDto {
   @IsBoolean({ message: 'isPublished must be a boolean' })
   @IsOptional()
   isPublished?: boolean;
+
+  @ApiPropertyOptional({ type: [String], example: ['bundle-1', 'bundle-2'] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  pricingBundleIds?: string[];
 }
 
 export class EventListQueryDto {
@@ -155,6 +168,8 @@ export class EventResponseDto {
 
   @ApiProperty() @Type(() => Date) @IsDate() createdAt!: Date;
   @ApiProperty() @Type(() => Date) @IsDate() updatedAt!: Date;
+
+  @ApiProperty({ type: [String] }) @IsArray() @IsString({ each: true }) pricingBundleIds!: string[];
 }
 
 export class PaginatedEventListResponseDto {

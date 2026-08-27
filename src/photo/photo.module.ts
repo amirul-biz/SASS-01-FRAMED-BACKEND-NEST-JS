@@ -12,5 +12,6 @@ import { PhotoService } from './photo.service';
   imports: [PrismaModule, StorageModule, EventModule],
   controllers: [PhotoController, PhotoReconciliationController],
   providers: [PhotoService, PhotoRepository, PhotoReconciliationService],
+  exports: [PhotoService],
 })
 export class PhotoModule {}

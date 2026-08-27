@@ -21,3 +21,20 @@ export interface PaginatedPhotos<T> {
   items: T[];
   totalItemCount: number;
 }
+
+export interface PublicPhoto {
+  id: string;
+  originalName: string;
+  url: string | null;
+  width: number | null;
+  height: number | null;
+  capturedAt: Date | null;
+}
+
+export interface PaginatedPublicPhotoList {
+  items: PublicPhoto[];
+  totalItemCount: number;
+  totalPageCount: number;
+  pageNumber: number;
+  pageSize: number;
+}

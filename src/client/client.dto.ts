@@ -1,16 +1,21 @@
 import { Type } from 'class-transformer';
 import {
+  IsArray,
+  IsBoolean,
   IsDate,
   IsDateString,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EventCategory } from '../../generated/prisma/enums';
+import { PricingOptionSummaryDto, VoucherSummaryDto } from '../pricing-bundles/pricing-bundles.dto';
 import { CLIENT_EVENTS_PAGINATION } from './client.constants';
 
 export class ClientLatestEventDto {
@@ -144,6 +149,83 @@ export class ClientPhotographerProfileDto {
   @IsEnum(EventCategory)
   @IsOptional()
   topCategory!: EventCategory | null;
+}
+
+export class ClientEventPricingBundleDto {
+  @ApiProperty() @IsString() id!: string;
+  @ApiProperty() @IsString() name!: string;
+  @ApiProperty() @IsBoolean() fullGalleryEnabled!: boolean;
+  @ApiProperty() @IsNumber() fullGalleryPrice!: number;
+
+  @ApiProperty({ type: [PricingOptionSummaryDto] })
+  @ValidateNested({ each: true })
+  @Type(() => PricingOptionSummaryDto)
+  pricingOptions!: PricingOptionSummaryDto[];
+
+  @ApiProperty({ type: [VoucherSummaryDto] })
+  @ValidateNested({ each: true })
+  @Type(() => VoucherSummaryDto)
+  vouchers!: VoucherSummaryDto[];
+}
+
+export class ClientEventDetailDto extends ClientLatestEventDto {
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  description!: string | null;
+
+  @ApiProperty({ type: [ClientEventPricingBundleDto] })
+  @ValidateNested({ each: true })
+  @Type(() => ClientEventPricingBundleDto)
+  pricingBundles!: ClientEventPricingBundleDto[];
+}
+
+export class ClientEventPhotoDto {
+  @ApiProperty() @IsString() id!: string;
+  @ApiProperty() @IsString() originalName!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  url!: string | null;
+
+  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() width!: number | null;
+  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() height!: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Type(() => Date)
+  @IsOptional()
+  capturedAt!: Date | null;
+}
+
+export class ClientEventPhotoListQueryDto {
+  @ApiPropertyOptional({ example: CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_NUMBER })
+  @Type(() => Number)
+  @IsInt({ message: 'pageNumber must be an integer' })
+  @Min(1, { message: 'pageNumber must be at least 1' })
+  @IsOptional()
+  pageNumber: number = CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_NUMBER;
+
+  @ApiPropertyOptional({ example: CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_SIZE })
+  @Type(() => Number)
+  @IsInt({ message: 'pageSize must be an integer' })
+  @Min(1, { message: 'pageSize must be at least 1' })
+  @Max(CLIENT_EVENTS_PAGINATION.PAGE_SIZE_MAX, {
+    message: `pageSize must be at most ${CLIENT_EVENTS_PAGINATION.PAGE_SIZE_MAX}`,
+  })
+  @IsOptional()
+  pageSize: number = CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_SIZE;
+}
+
+export class PaginatedClientEventPhotoListResponseDto {
+  @ApiProperty({ type: [ClientEventPhotoDto] })
+  @Type(() => ClientEventPhotoDto)
+  items!: ClientEventPhotoDto[];
+
+  @ApiProperty() @IsInt() totalItemCount!: number;
+  @ApiProperty() @IsInt() totalPageCount!: number;
+  @ApiProperty() @IsInt() pageNumber!: number;
+  @ApiProperty() @IsInt() pageSize!: number;
 }
 
 export class ClientHomeResponseDto {

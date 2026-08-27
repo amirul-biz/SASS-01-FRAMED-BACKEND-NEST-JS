@@ -14,7 +14,7 @@ import {
   UpdateEventDto,
 } from './event.dto';
 import { EventRepository } from './event.repository';
-import type { LatestPublishedEvent, PaginatedEvents } from './event.interface';
+import type { LatestPublishedEvent, PaginatedEvents, PublishedEventDetail } from './event.interface';
 
 const DATE_RANGE_CHECK_CONSTRAINT = 'events_date_range_check';
 
@@ -32,6 +32,7 @@ export class EventService {
   ): Promise<EventResponseDto> {
     this.assertOwnedCoverPhotoUrl(dto.coverPhotoUrl);
     const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
+    await this.assertOwnedPricingBundles(photographerId, dto.pricingBundleIds);
 
     return await this.runWithDateRangeCheck(() =>
       this.eventRepository.create(photographerId, dto),
@@ -71,6 +72,7 @@ export class EventService {
   ): Promise<EventResponseDto> {
     this.assertOwnedCoverPhotoUrl(dto.coverPhotoUrl);
     const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
+    await this.assertOwnedPricingBundles(photographerId, dto.pricingBundleIds);
     const existing = await this.getOwnedEventOrThrow(id, photographerId);
 
     const justPublished = dto.isPublished === true && !existing.isPublished;
@@ -111,6 +113,14 @@ export class EventService {
     return await this.eventRepository.getLatestPublished(limit);
   }
 
+  async getPublishedEventDetail(id: string): Promise<PublishedEventDetail> {
+    const event = await this.eventRepository.getPublishedDetail(id);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    return event;
+  }
+
   async getPublishedEventList(filters: {
     search?: string;
     dateFrom?: string;
@@ -146,6 +156,22 @@ export class EventService {
   private assertOwnedCoverPhotoUrl(coverPhotoUrl: string | undefined): void {
     if (coverPhotoUrl !== undefined && !this.storageService.isOwnPublicUrl(coverPhotoUrl)) {
       throw new BadRequestException('Invalid cover photo URL');
+    }
+  }
+
+  private async assertOwnedPricingBundles(
+    photographerId: string,
+    pricingBundleIds: string[] | undefined,
+  ): Promise<void> {
+    if (!pricingBundleIds || pricingBundleIds.length === 0) {
+      return;
+    }
+    const ownedCount = await this.eventRepository.countOwnedBundles(
+      photographerId,
+      pricingBundleIds,
+    );
+    if (ownedCount !== pricingBundleIds.length) {
+      throw new BadRequestException('Invalid pricing bundle');
     }
   }
 

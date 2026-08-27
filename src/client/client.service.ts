@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { EventService } from '../event/event.service';
+import { PhotoService } from '../photo/photo.service';
 import { PhotographerService } from '../photographer/photographer.service';
 import { CLIENT_PHOTOGRAPHERS_LIST_MAX } from './client.constants';
 import {
+  ClientEventDetailDto,
   ClientEventListQueryDto,
+  ClientEventPhotoListQueryDto,
   ClientHomeResponseDto,
   ClientPhotographerProfileDto,
   ClientTopPhotographerDto,
   PaginatedClientEventListResponseDto,
+  PaginatedClientEventPhotoListResponseDto,
 } from './client.dto';
 
 const HOME_LATEST_EVENTS_LIMIT = 3;
@@ -18,6 +22,7 @@ export class ClientService {
   constructor(
     private readonly eventService: EventService,
     private readonly photographerService: PhotographerService,
+    private readonly photoService: PhotoService,
   ) {}
 
   async getHomeData(): Promise<ClientHomeResponseDto> {
@@ -50,6 +55,20 @@ export class ClientService {
       pageNumber: query.pageNumber,
       pageSize: query.pageSize,
     };
+  }
+
+  async getEventDetail(id: string): Promise<ClientEventDetailDto> {
+    return await this.eventService.getPublishedEventDetail(id);
+  }
+
+  async getEventPhotos(
+    id: string,
+    query: ClientEventPhotoListQueryDto,
+  ): Promise<PaginatedClientEventPhotoListResponseDto> {
+    return await this.photoService.listPublishedEventPhotos(id, {
+      pageNumber: query.pageNumber,
+      pageSize: query.pageSize,
+    });
   }
 
   async getPhotographerList(search: string | undefined): Promise<ClientTopPhotographerDto[]> {

@@ -11,6 +11,7 @@ import { PricingOptionsModule } from './pricing-options/pricing-options.module';
 import { PricingBundlesModule } from './pricing-bundles/pricing-bundles.module';
 import { VouchersModule } from './vouchers/vouchers.module';
 import { PhotoModule } from './photo/photo.module';
+import { OrderModule } from './order/order.module';
 import { SampleModule } from './sample/sample.module';
 import { UsersModule } from './users/users.module';
 
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module';
     VouchersModule,
     EventModule,
     PhotoModule,
+    OrderModule,
     UsersModule,
     ClientModule,
   ],

@@ -1,12 +1,15 @@
 import { Controller, Get, Param, Query, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ApiOkResponse } from '@nestjs/swagger';
 import {
+  ClientEventDetailDto,
   ClientEventListQueryDto,
+  ClientEventPhotoListQueryDto,
   ClientHomeResponseDto,
   ClientPhotographerListQueryDto,
   ClientPhotographerProfileDto,
   ClientTopPhotographerDto,
   PaginatedClientEventListResponseDto,
+  PaginatedClientEventPhotoListResponseDto,
 } from './client.dto';
 import { ClientService } from './client.service';
 
@@ -27,6 +30,22 @@ export class ClientController {
     @Query() query: ClientEventListQueryDto,
   ): Promise<PaginatedClientEventListResponseDto> {
     return await this.clientService.getEventList(query);
+  }
+
+  @Get('events/:id')
+  @ApiOkResponse({ type: ClientEventDetailDto })
+  async getEvent(@Param('id') id: string): Promise<ClientEventDetailDto> {
+    return await this.clientService.getEventDetail(id);
+  }
+
+  @Get('events/:id/photos')
+  @ApiOkResponse({ type: PaginatedClientEventPhotoListResponseDto })
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async getEventPhotos(
+    @Param('id') id: string,
+    @Query() query: ClientEventPhotoListQueryDto,
+  ): Promise<PaginatedClientEventPhotoListResponseDto> {
+    return await this.clientService.getEventPhotos(id, query);
   }
 
   @Get('photographers')

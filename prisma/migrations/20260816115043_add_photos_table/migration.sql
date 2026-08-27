@@ -12,6 +12,8 @@ CREATE TABLE "photos" (
     "width" INTEGER,
     "height" INTEGER,
     "status" "photo_upload_status" NOT NULL DEFAULT 'PENDING',
+    "captured_at" TIMESTAMP(3),
+    "is_event_album_cover" BOOLEAN NOT NULL DEFAULT false,
     "uploaded_at" TIMESTAMP(3),
     "deleted_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

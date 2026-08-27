@@ -1,12 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
 import type { Event, Prisma } from '../../generated/prisma/client';
-import type { CreateEventDto } from './event.dto';
+import { VoucherDiscountType } from '../../generated/prisma/client';
+import type { VoucherConditionDto, WireVoucherDiscountType } from '../vouchers/vouchers.dto';
+import type { CreateEventDto, EventResponseDto } from './event.dto';
 import type {
   LatestPublishedEvent,
   PaginatedEvents,
+  PublishedEventDetail,
   UpdateEventRepositoryData,
 } from './event.interface';
+
+const TO_WIRE_VOUCHER_TYPE: Record<VoucherDiscountType, WireVoucherDiscountType> = {
+  [VoucherDiscountType.FLAT_TIER]: 'flat-tier',
+  [VoucherDiscountType.PERCENT_TIER]: 'percent-tier',
+};
 
 const PUBLISHED_EVENT_CARD_SELECT = {
   id: true,
@@ -26,6 +34,31 @@ type PublishedEventCardRow = Prisma.EventGetPayload<{
   select: typeof PUBLISHED_EVENT_CARD_SELECT;
 }>;
 
+const PUBLISHED_EVENT_DETAIL_SELECT = {
+  ...PUBLISHED_EVENT_CARD_SELECT,
+  description: true,
+  pricingBundles: {
+    include: {
+      pricingBundle: {
+        include: {
+          vouchers: { include: { voucher: true } },
+          pricingOptions: { include: { pricingOption: true } },
+        },
+      },
+    },
+  },
+} satisfies Prisma.EventSelect;
+
+type PublishedEventDetailRow = Prisma.EventGetPayload<{
+  select: typeof PUBLISHED_EVENT_DETAIL_SELECT;
+}>;
+
+const EVENT_WITH_BUNDLES_INCLUDE = {
+  pricingBundles: { select: { pricingBundleId: true } },
+} satisfies Prisma.EventInclude;
+
+type EventWithBundlesRow = Event & Prisma.EventGetPayload<{ include: typeof EVENT_WITH_BUNDLES_INCLUDE }>;
+
 function toLatestPublishedEvent(
   event: PublishedEventCardRow,
 ): LatestPublishedEvent {
@@ -43,12 +76,55 @@ function toLatestPublishedEvent(
   };
 }
 
+function toPublishedEventDetail(event: PublishedEventDetailRow): PublishedEventDetail {
+  return {
+    ...toLatestPublishedEvent(event),
+    description: event.description,
+    pricingBundles: event.pricingBundles.map(({ pricingBundle }) => ({
+      id: pricingBundle.id,
+      name: pricingBundle.name,
+      fullGalleryEnabled: pricingBundle.fullGalleryEnabled,
+      fullGalleryPrice: Number(pricingBundle.fullGalleryPrice),
+      pricingOptions: pricingBundle.pricingOptions.map(({ pricingOption }) => ({
+        id: pricingOption.id,
+        label: pricingOption.label,
+        price: Number(pricingOption.price),
+      })),
+      vouchers: pricingBundle.vouchers.map(({ voucher }) => ({
+        id: voucher.id,
+        name: voucher.name,
+        discountType: TO_WIRE_VOUCHER_TYPE[voucher.discountType],
+        conditions: voucher.conditions as unknown as VoucherConditionDto[],
+      })),
+    })),
+  };
+}
+
+function toEventResponse(event: EventWithBundlesRow): EventResponseDto {
+  return {
+    id: event.id,
+    photographerId: event.photographerId,
+    title: event.title,
+    description: event.description,
+    category: event.category,
+    location: event.location,
+    eventStartDate: event.eventStartDate,
+    eventEndDate: event.eventEndDate,
+    isPublished: event.isPublished,
+    publishedAt: event.publishedAt,
+    coverPhotoUrl: event.coverPhotoUrl,
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt,
+    pricingBundleIds: event.pricingBundles.map((b) => b.pricingBundleId),
+  };
+}
+
 @Injectable()
 export class EventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(photographerId: string, data: CreateEventDto): Promise<Event> {
-    return await this.prisma.event.create({
+  async create(photographerId: string, data: CreateEventDto): Promise<EventResponseDto> {
+    const event = await this.prisma.event.create({
       data: {
         photographerId,
         title: data.title,
@@ -58,14 +134,21 @@ export class EventRepository {
         eventStartDate: new Date(data.eventStartDate),
         eventEndDate: new Date(data.eventEndDate),
         coverPhotoUrl: data.coverPhotoUrl,
+        ...(data.pricingBundleIds && {
+          pricingBundles: {
+            create: data.pricingBundleIds.map((pricingBundleId) => ({ pricingBundleId })),
+          },
+        }),
       },
+      include: EVENT_WITH_BUNDLES_INCLUDE,
     });
+    return toEventResponse(event);
   }
 
   async getManyByPhotographer(
     photographerId: string,
     { skip, take }: { skip: number; take: number },
-  ): Promise<PaginatedEvents<Event>> {
+  ): Promise<PaginatedEvents<EventResponseDto>> {
     const where = { photographerId, deletedAt: null };
 
     const [items, totalItemCount] = await this.prisma.$transaction([
@@ -74,40 +157,80 @@ export class EventRepository {
         orderBy: { eventStartDate: 'desc' },
         skip,
         take,
+        include: EVENT_WITH_BUNDLES_INCLUDE,
       }),
       this.prisma.event.count({ where }),
     ]);
 
-    return { items, totalItemCount };
+    return { items: items.map(toEventResponse), totalItemCount };
   }
 
-  async getOneOwned(id: string, photographerId: string): Promise<Event | null> {
-    return await this.prisma.event.findFirst({
+  async getOneOwned(id: string, photographerId: string): Promise<EventResponseDto | null> {
+    const event = await this.prisma.event.findFirst({
       where: { id, photographerId, deletedAt: null },
+      include: EVENT_WITH_BUNDLES_INCLUDE,
+    });
+    return event ? toEventResponse(event) : null;
+  }
+
+  async countOwnedBundles(photographerId: string, pricingBundleIds: string[]): Promise<number> {
+    return await this.prisma.pricingBundle.count({
+      where: { id: { in: pricingBundleIds }, photographerId },
     });
   }
 
-  async update(id: string, data: UpdateEventRepositoryData): Promise<Event> {
-    return await this.prisma.event.update({
+  async update(id: string, data: UpdateEventRepositoryData): Promise<EventResponseDto> {
+    const { pricingBundleIds } = data;
+
+    if (pricingBundleIds !== undefined) {
+      const [, , event] = await this.prisma.$transaction([
+        this.prisma.eventPricingBundle.deleteMany({ where: { eventId: id } }),
+        this.prisma.eventPricingBundle.createMany({
+          data: pricingBundleIds.map((pricingBundleId) => ({ eventId: id, pricingBundleId })),
+        }),
+        this.prisma.event.update({
+          where: { id },
+          data: this.buildUpdateData(data),
+          include: EVENT_WITH_BUNDLES_INCLUDE,
+        }),
+      ]);
+      return toEventResponse(event);
+    }
+
+    const event = await this.prisma.event.update({
       where: { id },
-      data: {
-        ...(data.title !== undefined && { title: data.title }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.category !== undefined && { category: data.category }),
-        ...(data.location !== undefined && { location: data.location }),
-        ...(data.eventStartDate !== undefined && {
-          eventStartDate: new Date(data.eventStartDate),
-        }),
-        ...(data.eventEndDate !== undefined && {
-          eventEndDate: new Date(data.eventEndDate),
-        }),
-        ...(data.coverPhotoUrl !== undefined && {
-          coverPhotoUrl: data.coverPhotoUrl,
-        }),
-        ...(data.isPublished !== undefined && { isPublished: data.isPublished }),
-        ...(data.publishedAt !== undefined && { publishedAt: data.publishedAt }),
-      },
+      data: this.buildUpdateData(data),
+      include: EVENT_WITH_BUNDLES_INCLUDE,
     });
+    return toEventResponse(event);
+  }
+
+  private buildUpdateData(data: UpdateEventRepositoryData): Prisma.EventUpdateInput {
+    return {
+      ...(data.title !== undefined && { title: data.title }),
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.category !== undefined && { category: data.category }),
+      ...(data.location !== undefined && { location: data.location }),
+      ...(data.eventStartDate !== undefined && {
+        eventStartDate: new Date(data.eventStartDate),
+      }),
+      ...(data.eventEndDate !== undefined && {
+        eventEndDate: new Date(data.eventEndDate),
+      }),
+      ...(data.coverPhotoUrl !== undefined && {
+        coverPhotoUrl: data.coverPhotoUrl,
+      }),
+      ...(data.isPublished !== undefined && { isPublished: data.isPublished }),
+      ...(data.publishedAt !== undefined && { publishedAt: data.publishedAt }),
+    };
+  }
+
+  async getPublishedDetail(id: string): Promise<PublishedEventDetail | null> {
+    const event = await this.prisma.event.findFirst({
+      where: { id, isPublished: true, deletedAt: null },
+      select: PUBLISHED_EVENT_DETAIL_SELECT,
+    });
+    return event ? toPublishedEventDetail(event) : null;
   }
 
   async softDelete(id: string): Promise<void> {

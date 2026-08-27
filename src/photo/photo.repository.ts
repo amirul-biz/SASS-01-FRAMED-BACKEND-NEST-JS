@@ -44,6 +44,25 @@ export class PhotoRepository {
     return { items, totalItemCount };
   }
 
+  async getManyPublishedByEvent(
+    eventId: string,
+    { skip, take }: { skip: number; take: number },
+  ): Promise<PaginatedPhotos<Photo>> {
+    const where = { eventId, status: 'UPLOADED' as const, deletedAt: null };
+
+    const [items, totalItemCount] = await this.prisma.$transaction([
+      this.prisma.photo.findMany({
+        where,
+        orderBy: [{ capturedAt: { sort: 'asc', nulls: 'last' } }, { uploadedAt: 'asc' }],
+        skip,
+        take,
+      }),
+      this.prisma.photo.count({ where }),
+    ]);
+
+    return { items, totalItemCount };
+  }
+
   async getOneOwned(id: string, eventId: string): Promise<Photo | null> {
     return await this.prisma.photo.findFirst({
       where: { id, eventId, deletedAt: null },

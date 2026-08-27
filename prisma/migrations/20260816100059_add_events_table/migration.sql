@@ -30,3 +30,17 @@ CREATE INDEX "idx_events_published" ON "events"("is_published", "event_start_dat
 
 -- AddForeignKey
 ALTER TABLE "events" ADD CONSTRAINT "events_photographer_id_fkey" FOREIGN KEY ("photographer_id") REFERENCES "photographer_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CreateTable
+CREATE TABLE "event_pricing_bundles" (
+    "event_id" TEXT NOT NULL,
+    "pricing_bundle_id" TEXT NOT NULL,
+
+    CONSTRAINT "event_pricing_bundles_pkey" PRIMARY KEY ("event_id","pricing_bundle_id")
+);
+
+-- AddForeignKey
+ALTER TABLE "event_pricing_bundles" ADD CONSTRAINT "event_pricing_bundles_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "event_pricing_bundles" ADD CONSTRAINT "event_pricing_bundles_pricing_bundle_id_fkey" FOREIGN KEY ("pricing_bundle_id") REFERENCES "pricing_bundles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

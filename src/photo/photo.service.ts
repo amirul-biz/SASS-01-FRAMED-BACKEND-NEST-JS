@@ -16,6 +16,7 @@ import {
   ReuploadPhotoResponseDto,
 } from './photo.dto';
 import { PhotoRepository } from './photo.repository';
+import type { PaginatedPublicPhotoList } from './photo.interface';
 
 const PRESIGN_EXPIRES_IN_SECONDS = 1800;
 
@@ -139,6 +140,34 @@ export class PhotoService {
 
     return {
       items: items.map((photo) => this.toResponseDto(photo)),
+      totalItemCount,
+      totalPageCount: Math.ceil(totalItemCount / query.pageSize),
+      pageNumber: query.pageNumber,
+      pageSize: query.pageSize,
+    };
+  }
+
+  async listPublishedEventPhotos(
+    eventId: string,
+    query: { pageNumber: number; pageSize: number },
+  ): Promise<PaginatedPublicPhotoList> {
+    await this.eventService.getPublishedEventDetail(eventId);
+    const skip = (query.pageNumber - 1) * query.pageSize;
+
+    const { items, totalItemCount } = await this.photoRepository.getManyPublishedByEvent(eventId, {
+      skip,
+      take: query.pageSize,
+    });
+
+    return {
+      items: items.map((photo) => ({
+        id: photo.id,
+        originalName: photo.originalName,
+        url: this.storageService.buildPublicUrl(photo.key),
+        width: photo.width,
+        height: photo.height,
+        capturedAt: photo.capturedAt,
+      })),
       totalItemCount,
       totalPageCount: Math.ceil(totalItemCount / query.pageSize),
       pageNumber: query.pageNumber,

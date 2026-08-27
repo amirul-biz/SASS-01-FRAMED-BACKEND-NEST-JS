@@ -1,7 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
-import { StorageService } from '../config/storage/storage.service';
+import { PublicStorageService } from '../config/storage/public-storage.service';
 import { PhotographerService } from '../photographer/photographer.service';
 import type { AuthenticatedUser } from '../types/express';
 import {
@@ -14,7 +18,11 @@ import {
   UpdateEventDto,
 } from './event.dto';
 import { EventRepository } from './event.repository';
-import type { LatestPublishedEvent, PaginatedEvents, PublishedEventDetail } from './event.interface';
+import type {
+  LatestPublishedEvent,
+  PaginatedEvents,
+  PublishedEventDetail,
+} from './event.interface';
 
 const DATE_RANGE_CHECK_CONSTRAINT = 'events_date_range_check';
 
@@ -23,7 +31,7 @@ export class EventService {
   constructor(
     private readonly eventRepository: EventRepository,
     private readonly photographerService: PhotographerService,
-    private readonly storageService: StorageService,
+    private readonly publicStorageService: PublicStorageService,
   ) {}
 
   async createEvent(
@@ -31,7 +39,8 @@ export class EventService {
     dto: CreateEventDto,
   ): Promise<EventResponseDto> {
     this.assertOwnedCoverPhotoUrl(dto.coverPhotoUrl);
-    const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
+    const photographerId =
+      await this.photographerService.getOwnPhotographerProfileId(user);
     await this.assertOwnedPricingBundles(photographerId, dto.pricingBundleIds);
 
     return await this.runWithDateRangeCheck(() =>
@@ -43,13 +52,15 @@ export class EventService {
     user: AuthenticatedUser,
     query: EventListQueryDto,
   ): Promise<PaginatedEventListResponseDto> {
-    const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
+    const photographerId =
+      await this.photographerService.getOwnPhotographerProfileId(user);
     const skip = (query.pageNumber - 1) * query.pageSize;
 
-    const { items, totalItemCount } = await this.eventRepository.getManyByPhotographer(
-      photographerId,
-      { skip, take: query.pageSize },
-    );
+    const { items, totalItemCount } =
+      await this.eventRepository.getManyByPhotographer(photographerId, {
+        skip,
+        take: query.pageSize,
+      });
 
     return {
       items,
@@ -60,8 +71,12 @@ export class EventService {
     };
   }
 
-  async getMyEvent(user: AuthenticatedUser, id: string): Promise<EventResponseDto> {
-    const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
+  async getMyEvent(
+    user: AuthenticatedUser,
+    id: string,
+  ): Promise<EventResponseDto> {
+    const photographerId =
+      await this.photographerService.getOwnPhotographerProfileId(user);
     return await this.getOwnedEventOrThrow(id, photographerId);
   }
 
@@ -71,7 +86,8 @@ export class EventService {
     dto: UpdateEventDto,
   ): Promise<EventResponseDto> {
     this.assertOwnedCoverPhotoUrl(dto.coverPhotoUrl);
-    const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
+    const photographerId =
+      await this.photographerService.getOwnPhotographerProfileId(user);
     await this.assertOwnedPricingBundles(photographerId, dto.pricingBundleIds);
     const existing = await this.getOwnedEventOrThrow(id, photographerId);
 
@@ -86,7 +102,8 @@ export class EventService {
   }
 
   async deleteMyEvent(user: AuthenticatedUser, id: string): Promise<void> {
-    const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
+    const photographerId =
+      await this.photographerService.getOwnPhotographerProfileId(user);
     await this.getOwnedEventOrThrow(id, photographerId);
     await this.eventRepository.softDelete(id);
   }
@@ -95,21 +112,24 @@ export class EventService {
     user: AuthenticatedUser,
     dto: PresignEventCoverPhotoUploadDto,
   ): Promise<PresignEventCoverPhotoUploadResponseDto> {
-    const photographerId = await this.photographerService.getOwnPhotographerProfileId(user);
+    const photographerId =
+      await this.photographerService.getOwnPhotographerProfileId(user);
     const sanitizedFileName = sanitizeFileName(dto.fileName);
     const key = `events/${photographerId}/${randomUUID()}-${sanitizedFileName}`;
     const expiresIn = 300;
 
-    const uploadUrl = await this.storageService.getPresignedUploadUrl({
+    const uploadUrl = await this.publicStorageService.getPresignedUploadUrl({
       key,
       mimeType: dto.mimeType,
     });
-    const publicUrl = this.storageService.buildPublicUrl(key);
+    const publicUrl = this.publicStorageService.buildPublicUrl(key);
 
     return { uploadUrl, publicUrl, key, expiresIn };
   }
 
-  async getLatestPublishedEvents(limit: number): Promise<LatestPublishedEvent[]> {
+  async getLatestPublishedEvents(
+    limit: number,
+  ): Promise<LatestPublishedEvent[]> {
     return await this.eventRepository.getLatestPublished(limit);
   }
 
@@ -154,7 +174,10 @@ export class EventService {
   }
 
   private assertOwnedCoverPhotoUrl(coverPhotoUrl: string | undefined): void {
-    if (coverPhotoUrl !== undefined && !this.storageService.isOwnPublicUrl(coverPhotoUrl)) {
+    if (
+      coverPhotoUrl !== undefined &&
+      !this.publicStorageService.isOwnPublicUrl(coverPhotoUrl)
+    ) {
       throw new BadRequestException('Invalid cover photo URL');
     }
   }
@@ -175,11 +198,16 @@ export class EventService {
     }
   }
 
-  private async runWithDateRangeCheck<T>(operation: () => Promise<T>): Promise<T> {
+  private async runWithDateRangeCheck<T>(
+    operation: () => Promise<T>,
+  ): Promise<T> {
     try {
       return await operation();
     } catch (error) {
-      if (error instanceof Error && error.message.includes(DATE_RANGE_CHECK_CONSTRAINT)) {
+      if (
+        error instanceof Error &&
+        error.message.includes(DATE_RANGE_CHECK_CONSTRAINT)
+      ) {
         throw new BadRequestException(
           'Event end date must be on or after the start date',
         );

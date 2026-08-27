@@ -5,7 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FirebaseService } from '../config/firebase/firebase.service';
-import { StorageService } from '../config/storage/storage.service';
+import { PrivateStorageService } from '../config/storage/private-storage.service';
+import { PublicStorageService } from '../config/storage/public-storage.service';
 import { UserRole } from '../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../types/express';
 import { randomUUID } from 'crypto';
@@ -31,7 +32,8 @@ export class PhotographerService {
   constructor(
     private readonly firebaseService: FirebaseService,
     private readonly photographerRepository: PhotographerRepository,
-    private readonly storageService: StorageService,
+    private readonly privateStorageService: PrivateStorageService,
+    private readonly publicStorageService: PublicStorageService,
   ) {}
 
   async registerPhotographer(
@@ -78,7 +80,7 @@ export class PhotographerService {
     // concurrent R2 uploads at once.
     for (const file of files) {
       try {
-        await this.storageService.uploadFile({
+        await this.privateStorageService.uploadFile({
           originalName: file.originalname,
           mimeType: file.mimetype,
           buffer: file.buffer,
@@ -113,14 +115,14 @@ export class PhotographerService {
   ): Promise<PhotographerProfileResponseDto> {
     if (
       dto.profileImageUrl !== undefined &&
-      !this.storageService.isOwnPublicUrl(dto.profileImageUrl)
+      !this.publicStorageService.isOwnPublicUrl(dto.profileImageUrl)
     ) {
       throw new BadRequestException('Invalid profile image URL');
     }
 
     if (
       dto.bannerUrl !== undefined &&
-      !this.storageService.isOwnPublicUrl(dto.bannerUrl)
+      !this.publicStorageService.isOwnPublicUrl(dto.bannerUrl)
     ) {
       throw new BadRequestException('Invalid banner URL');
     }
@@ -141,11 +143,11 @@ export class PhotographerService {
     const key = `photographer-profiles/${userPlatformId}/${randomUUID()}-${sanitizedFileName}`;
     const expiresIn = 300;
 
-    const uploadUrl = await this.storageService.getPresignedUploadUrl({
+    const uploadUrl = await this.publicStorageService.getPresignedUploadUrl({
       key,
       mimeType: dto.mimeType,
     });
-    const publicUrl = this.storageService.buildPublicUrl(key);
+    const publicUrl = this.publicStorageService.buildPublicUrl(key);
 
     return { uploadUrl, publicUrl, key, expiresIn };
   }
@@ -159,11 +161,11 @@ export class PhotographerService {
     const key = `photographer-profiles/${userPlatformId}/banner/${randomUUID()}-${sanitizedFileName}`;
     const expiresIn = 300;
 
-    const uploadUrl = await this.storageService.getPresignedUploadUrl({
+    const uploadUrl = await this.publicStorageService.getPresignedUploadUrl({
       key,
       mimeType: dto.mimeType,
     });
-    const publicUrl = this.storageService.buildPublicUrl(key);
+    const publicUrl = this.publicStorageService.buildPublicUrl(key);
 
     return { uploadUrl, publicUrl, key, expiresIn };
   }

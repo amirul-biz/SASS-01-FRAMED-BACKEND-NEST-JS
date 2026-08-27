@@ -1,7 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
-import { StorageService } from '../config/storage/storage.service';
+import { PrivateStorageService } from '../config/storage/private-storage.service';
 import { EventService } from '../event/event.service';
 import type { Photo } from '../../generated/prisma/client';
 import type { AuthenticatedUser } from '../types/express';
@@ -25,7 +29,7 @@ export class PhotoService {
   constructor(
     private readonly photoRepository: PhotoRepository,
     private readonly eventService: EventService,
-    private readonly storageService: StorageService,
+    private readonly privateStorageService: PrivateStorageService,
   ) {}
 
   async presignBatch(
@@ -39,11 +43,12 @@ export class PhotoService {
       dto.files.map(async (file) => {
         const id = randomUUID();
         const key = `events/${eventId}/photos/${id}-${sanitizeFileName(file.fileName)}`;
-        const uploadUrl = await this.storageService.getPresignedUploadUrl({
-          key,
-          mimeType: file.mimeType,
-          expiresIn: PRESIGN_EXPIRES_IN_SECONDS,
-        });
+        const uploadUrl =
+          await this.privateStorageService.getPresignedUploadUrl({
+            key,
+            mimeType: file.mimeType,
+            expiresIn: PRESIGN_EXPIRES_IN_SECONDS,
+          });
 
         return {
           id,
@@ -60,7 +65,11 @@ export class PhotoService {
     await this.photoRepository.createManyPending(pendingRows);
 
     return {
-      photos: pendingRows.map(({ id, uploadUrl, key }) => ({ photoId: id, uploadUrl, key })),
+      photos: pendingRows.map(({ id, uploadUrl, key }) => ({
+        photoId: id,
+        uploadUrl,
+        key,
+      })),
       expiresIn: PRESIGN_EXPIRES_IN_SECONDS,
     };
   }
@@ -100,7 +109,9 @@ export class PhotoService {
       );
     }
 
-    const alreadyOnR2 = await this.storageService.objectExists(photo.key);
+    const alreadyOnR2 = await this.privateStorageService.objectExists(
+      photo.key,
+    );
     if (alreadyOnR2) {
       const updated = await this.photoRepository.updateStatus(photo.id, {
         status: 'UPLOADED',
@@ -109,12 +120,14 @@ export class PhotoService {
       return { status: updated.status, key: updated.key };
     }
 
-    const uploadUrl = await this.storageService.getPresignedUploadUrl({
+    const uploadUrl = await this.privateStorageService.getPresignedUploadUrl({
       key: photo.key,
       mimeType: dto.mimeType,
       expiresIn: PRESIGN_EXPIRES_IN_SECONDS,
     });
-    const updated = await this.photoRepository.updateStatus(photo.id, { status: 'PENDING' });
+    const updated = await this.photoRepository.updateStatus(photo.id, {
+      status: 'PENDING',
+    });
 
     return {
       status: updated.status,
@@ -132,11 +145,14 @@ export class PhotoService {
     await this.eventService.getMyEvent(user, eventId);
     const skip = (query.pageNumber - 1) * query.pageSize;
 
-    const { items, totalItemCount } = await this.photoRepository.getManyByEvent(eventId, {
-      status: query.status,
-      skip,
-      take: query.pageSize,
-    });
+    const { items, totalItemCount } = await this.photoRepository.getManyByEvent(
+      eventId,
+      {
+        status: query.status,
+        skip,
+        take: query.pageSize,
+      },
+    );
 
     return {
       items: items.map((photo) => this.toResponseDto(photo)),
@@ -154,16 +170,17 @@ export class PhotoService {
     await this.eventService.getPublishedEventDetail(eventId);
     const skip = (query.pageNumber - 1) * query.pageSize;
 
-    const { items, totalItemCount } = await this.photoRepository.getManyPublishedByEvent(eventId, {
-      skip,
-      take: query.pageSize,
-    });
+    const { items, totalItemCount } =
+      await this.photoRepository.getManyPublishedByEvent(eventId, {
+        skip,
+        take: query.pageSize,
+      });
 
     return {
       items: items.map((photo) => ({
         id: photo.id,
         originalName: photo.originalName,
-        url: this.storageService.buildPublicUrl(photo.key),
+        url: this.privateStorageService.buildPublicUrl(photo.key),
         width: photo.width,
         height: photo.height,
         capturedAt: photo.capturedAt,
@@ -175,13 +192,20 @@ export class PhotoService {
     };
   }
 
-  async deletePhoto(user: AuthenticatedUser, eventId: string, photoId: string): Promise<void> {
+  async deletePhoto(
+    user: AuthenticatedUser,
+    eventId: string,
+    photoId: string,
+  ): Promise<void> {
     await this.eventService.getMyEvent(user, eventId);
     const photo = await this.getOwnedPhotoOrThrow(eventId, photoId);
     await this.photoRepository.softDelete(photo.id);
   }
 
-  private async getOwnedPhotoOrThrow(eventId: string, photoId: string): Promise<Photo> {
+  private async getOwnedPhotoOrThrow(
+    eventId: string,
+    photoId: string,
+  ): Promise<Photo> {
     const photo = await this.photoRepository.getOneOwned(photoId, eventId);
     if (!photo) {
       throw new NotFoundException('Photo not found for this event');
@@ -199,7 +223,10 @@ export class PhotoService {
       width: photo.width,
       height: photo.height,
       status: photo.status,
-      url: photo.status === 'UPLOADED' ? this.storageService.buildPublicUrl(photo.key) : null,
+      url:
+        photo.status === 'UPLOADED'
+          ? this.privateStorageService.buildPublicUrl(photo.key)
+          : null,
       uploadedAt: photo.uploadedAt,
       capturedAt: photo.capturedAt,
       isEventAlbumCover: photo.isEventAlbumCover,

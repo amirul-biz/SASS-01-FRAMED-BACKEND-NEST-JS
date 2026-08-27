@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { StorageService } from '../config/storage/storage.service';
+import { PrivateStorageService } from '../config/storage/private-storage.service';
 import {
   PHOTO_RECONCILIATION_GRACE_MINUTES,
   PHOTO_RECONCILIATION_HARD_FAIL_HOURS,
@@ -18,11 +18,13 @@ export class PhotoReconciliationService {
 
   constructor(
     private readonly photoRepository: PhotoRepository,
-    private readonly storageService: StorageService,
+    private readonly privateStorageService: PrivateStorageService,
   ) {}
 
   async reconcilePendingPhotos(): Promise<PhotoReconciliationSummary> {
-    const softCutoff = new Date(Date.now() - PHOTO_RECONCILIATION_GRACE_MINUTES * 60_000);
+    const softCutoff = new Date(
+      Date.now() - PHOTO_RECONCILIATION_GRACE_MINUTES * 60_000,
+    );
     const hardCutoff = new Date(
       Date.now() - PHOTO_RECONCILIATION_HARD_FAIL_HOURS * 60 * 60_000,
     );
@@ -36,7 +38,9 @@ export class PhotoReconciliationService {
     let failedCount = 0;
 
     for (const photo of pending) {
-      const existsOnR2 = await this.storageService.objectExists(photo.key);
+      const existsOnR2 = await this.privateStorageService.objectExists(
+        photo.key,
+      );
 
       if (existsOnR2) {
         await this.photoRepository.updateStatus(photo.id, {

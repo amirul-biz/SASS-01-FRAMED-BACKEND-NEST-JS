@@ -24,6 +24,19 @@ steps:
       - '$_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:latest'
     id: PushLatest
 
+  # Run pending Prisma migrations against the target database before deploying.
+  # No waitFor set, so this runs after Build/Push/PushLatest by default — and
+  # Deploy (below) runs after this, so a failed migration aborts the rollout
+  # instead of leaving the new code running against an out-of-date schema.
+  - name: 'node:20-alpine'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - 'npm ci && npx prisma migrate deploy'
+    env:
+      - 'DATABASE_URL=$_DATABASE_URL'
+    id: Migrate
+
   # Deploy to Cloud Run
   # Runtime env vars (see .env.example), passed via substitutions for now — TODO: move
   # DATABASE_URL / FIREBASE_PRIVATE_KEY / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY /

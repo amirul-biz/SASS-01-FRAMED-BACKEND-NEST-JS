@@ -171,6 +171,7 @@ model Voucher {
   updatedAt      DateTime            @updatedAt @map("updated_at")
 
   bundles BundleVoucher[]
+  orders  Order[]
 
   @@index([photographerId], map: "idx_vouchers_photographer")
   @@map("vouchers")
@@ -234,16 +235,26 @@ enum OrderStatus {
   @@map("order_status")
 }
 
+enum CountryCode {
+  MALAYSIA  @map("60")
+  SINGAPORE @map("65")
+
+  @@map("country_code")
+}
+
 model Order {
   id             String      @id @default(uuid())
   eventId        String      @map("event_id")
   event          Event       @relation(fields: [eventId], references: [id], onDelete: Restrict)
   email          String
-  countryCode    String      @map("country_code")
+  countryCode    CountryCode @map("country_code")
   phone          String
   subtotal       Decimal     @db.Decimal(10, 2)
   discountAmount Decimal     @default(0) @map("discount_amount") @db.Decimal(10, 2)
   total          Decimal     @db.Decimal(10, 2)
+  priceBreakdown Json        @map("price_breakdown")
+  voucherId      String?     @map("voucher_id")
+  voucher        Voucher?    @relation(fields: [voucherId], references: [id], onDelete: SetNull)
   voucherName    String?     @map("voucher_name")
   status         OrderStatus @default(PENDING_CONFIRMATION)
   createdAt      DateTime    @default(now()) @map("created_at")
@@ -251,6 +262,7 @@ model Order {
   items OrderItem[]
 
   @@index([eventId], map: "idx_orders_event")
+  @@index([voucherId], map: "idx_orders_voucher")
   @@map("orders")
 }
 

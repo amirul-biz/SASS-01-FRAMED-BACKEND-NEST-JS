@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
+import { PrivateStorageService } from '../config/storage/private-storage.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
 import { PhotographerService } from '../photographer/photographer.service';
 import type { AuthenticatedUser } from '../types/express';
@@ -32,6 +33,7 @@ export class EventService {
     private readonly eventRepository: EventRepository,
     private readonly photographerService: PhotographerService,
     private readonly publicStorageService: PublicStorageService,
+    private readonly privateStorageService: PrivateStorageService,
   ) {}
 
   async createEvent(
@@ -138,7 +140,13 @@ export class EventService {
     if (!event) {
       throw new NotFoundException('Event not found');
     }
-    return event;
+    const { albumCoverPhotoKeys, ...rest } = event;
+    return {
+      ...rest,
+      albumCoverPhotoUrls: albumCoverPhotoKeys.map((key) =>
+        this.privateStorageService.buildPublicUrl(key),
+      ),
+    };
   }
 
   async getPublishedEventList(filters: {

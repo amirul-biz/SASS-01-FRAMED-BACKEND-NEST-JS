@@ -18,6 +18,7 @@ import {
   PresignPhotosBatchResponseDto,
   ReuploadPhotoDto,
   ReuploadPhotoResponseDto,
+  UpdatePhotoAlbumCoverDto,
 } from './photo.dto';
 import { PhotoRepository } from './photo.repository';
 import type { PaginatedPublicPhotoList } from './photo.interface';
@@ -190,6 +191,23 @@ export class PhotoService {
       pageNumber: query.pageNumber,
       pageSize: query.pageSize,
     };
+  }
+
+  async setAlbumCover(
+    user: AuthenticatedUser,
+    eventId: string,
+    photoId: string,
+    dto: UpdatePhotoAlbumCoverDto,
+  ): Promise<PhotoResponseDto> {
+    await this.eventService.getMyEvent(user, eventId);
+    const photo = await this.getOwnedPhotoOrThrow(eventId, photoId);
+
+    if (photo.status !== 'UPLOADED') {
+      throw new BadRequestException('Only uploaded photos can be set as an album cover');
+    }
+
+    const updated = await this.photoRepository.updateAlbumCover(photo.id, dto.isEventAlbumCover);
+    return this.toResponseDto(updated);
   }
 
   async deletePhoto(

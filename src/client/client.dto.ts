@@ -178,6 +178,11 @@ export class ClientEventDetailDto extends ClientLatestEventDto {
   @ValidateNested({ each: true })
   @Type(() => ClientEventPricingBundleDto)
   pricingBundles!: ClientEventPricingBundleDto[];
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  albumCoverPhotoUrls!: string[];
 }
 
 export class ClientEventPhotoDto {

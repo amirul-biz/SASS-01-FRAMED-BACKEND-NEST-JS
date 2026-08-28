@@ -49,4 +49,5 @@ export interface PublishedEventPricingBundle {
 export interface PublishedEventDetail extends LatestPublishedEvent {
   description: string | null;
   pricingBundles: PublishedEventPricingBundle[];
+  albumCoverPhotoUrls: string[];
 }

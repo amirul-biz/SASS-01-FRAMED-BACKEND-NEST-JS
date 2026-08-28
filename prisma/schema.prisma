@@ -4,7 +4,7 @@ datasource db {
 
 generator client {
   provider     = "prisma-client"
-  output       = "../generated"
+  output       = "../generated/prisma"
   moduleFormat = "commonjs"
 }
 
@@ -13,6 +13,25 @@ enum UserRole {
   ADMIN
 
   @@map("user_role")
+}
+
+enum EventCategory {
+  CYCLING
+  RUNNING
+  SWIMMING
+  TRIATHLON
+  MOTORSPORT
+  OTHER
+
+  @@map("event_category")
+}
+
+enum PhotoUploadStatus {
+  PENDING
+  UPLOADED
+  FAILED
+
+  @@map("photo_upload_status")
 }
 
 model User {
@@ -41,17 +60,72 @@ model UserPlatform {
 }
 
 model PhotographerProfile {
-  id             String       @id @default(uuid())
-  userPlatformId String       @unique @map("user_platform_id")
-  userPlatform   UserPlatform @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
-  name           String
-  bio            String?
-  companyName    String?      @map("company_name")
-  phone          String?
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  id              String       @id @default(uuid())
+  userPlatformId  String       @unique @map("user_platform_id")
+  userPlatform    UserPlatform @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
+  name            String
+  bio             String?
+  companyName     String?      @map("company_name")
+  phone           String?
+  contactNo       String?      @map("contact_no")
+  profileImageUrl String?      @map("profile_image_url")
+  bannerUrl       String?      @map("banner_url")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  events Event[]
 
   @@map("photographer_profiles")
+}
+
+model Event {
+  id                  String              @id @default(uuid())
+  photographerId      String              @map("photographer_id")
+  photographerProfile PhotographerProfile @relation(fields: [photographerId], references: [id], onDelete: Cascade)
+  title               String              @db.VarChar(255)
+  description         String?
+  category            EventCategory
+  location            String?             @db.VarChar(255)
+  eventStartDate      DateTime            @map("event_start_date") @db.Timestamptz(6)
+  eventEndDate        DateTime            @map("event_end_date") @db.Timestamptz(6)
+  isPublished         Boolean             @default(false) @map("is_published")
+  publishedAt         DateTime?           @map("published_at") @db.Timestamptz(6)
+  coverPhotoUrl       String?             @map("cover_photo_url")
+  deletedAt           DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  photos         Photo[]
+  pricingBundles EventPricingBundle[]
+  orders         Order[]
+
+  @@index([photographerId], map: "idx_events_photographer")
+  @@index([isPublished, eventStartDate(sort: Desc)], map: "idx_events_published")
+  @@map("events")
+}
+
+model Photo {
+  id                String            @id @default(uuid())
+  eventId           String            @map("event_id")
+  event             Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  key               String            @unique
+  originalName      String            @map("original_name")
+  mimeType          String            @map("mime_type")
+  sizeBytes         Int?              @map("size_bytes")
+  width             Int?
+  height            Int?
+  status            PhotoUploadStatus @default(PENDING)
+  capturedAt        DateTime?         @map("captured_at")
+  isEventAlbumCover Boolean           @default(false) @map("is_event_album_cover")
+  uploadedAt        DateTime?         @map("uploaded_at")
+  deletedAt         DateTime?         @map("deleted_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  orderItems OrderItem[]
+
+  @@index([eventId, status], map: "idx_photos_event_status")
+  @@map("photos")
 }
 
 model AdminProfile {
@@ -63,4 +137,144 @@ model AdminProfile {
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@map("admin_profiles")
+}
+
+// ############################################################
+model PricingOption {
+  id             String   @id @default(uuid())
+  photographerId String   @map("photographer_id")
+  label          String
+  price          Decimal  @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  bundles BundlePricingOption[]
+
+  @@index([photographerId], map: "idx_pricing_options_photographer")
+  @@map("pricing_options")
+}
+
+enum VoucherDiscountType {
+  FLAT_TIER
+  PERCENT_TIER
+
+  @@map("voucher_discount_type")
+}
+
+model Voucher {
+  id             String              @id @default(uuid())
+  photographerId String              @map("photographer_id")
+  name           String
+  discountType   VoucherDiscountType @map("discount_type")
+  conditions     Json                @map("conditions")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  bundles BundleVoucher[]
+  orders  Order[]
+
+  @@index([photographerId], map: "idx_vouchers_photographer")
+  @@map("vouchers")
+}
+
+model BundleVoucher {
+  pricingBundleId String @map("pricing_bundle_id")
+  voucherId       String @map("voucher_id")
+
+  pricingBundle PricingBundle @relation(fields: [pricingBundleId], references: [id], onDelete: Cascade)
+  voucher       Voucher       @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+
+  @@id([pricingBundleId, voucherId])
+  @@map("bundle_vouchers")
+}
+
+model BundlePricingOption {
+  pricingBundleId String @map("pricing_bundle_id")
+  pricingOptionId String @map("pricing_option_id")
+
+  pricingBundle PricingBundle @relation(fields: [pricingBundleId], references: [id], onDelete: Cascade)
+  pricingOption PricingOption @relation(fields: [pricingOptionId], references: [id], onDelete: Restrict)
+
+  @@id([pricingBundleId, pricingOptionId])
+  @@map("bundle_pricing_options")
+}
+
+model PricingBundle {
+  id                 String   @id @default(uuid())
+  photographerId     String   @map("photographer_id")
+  name               String
+  fullGalleryEnabled Boolean  @default(false) @map("full_gallery_enabled")
+  fullGalleryPrice   Decimal  @default(0) @map("full_gallery_price") @db.Decimal(10, 2)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  events         EventPricingBundle[]
+  vouchers       BundleVoucher[]
+  pricingOptions BundlePricingOption[]
+
+  @@index([photographerId], map: "idx_pricing_bundles_photographer")
+  @@map("pricing_bundles")
+}
+
+model EventPricingBundle {
+  eventId         String @map("event_id")
+  pricingBundleId String @map("pricing_bundle_id")
+
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  pricingBundle PricingBundle @relation(fields: [pricingBundleId], references: [id], onDelete: Restrict)
+
+  @@id([eventId, pricingBundleId])
+  @@map("event_pricing_bundles")
+}
+
+enum OrderStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  CANCELLED
+
+  @@map("order_status")
+}
+
+enum CountryCode {
+  MALAYSIA  @map("60")
+  SINGAPORE @map("65")
+
+  @@map("country_code")
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  eventId        String      @map("event_id")
+  event          Event       @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  email          String
+  countryCode    CountryCode @map("country_code")
+  phone          String
+  subtotal       Decimal     @db.Decimal(10, 2)
+  discountAmount Decimal     @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  total          Decimal     @db.Decimal(10, 2)
+  priceBreakdown Json        @map("price_breakdown")
+  voucherId      String?     @map("voucher_id")
+  voucher        Voucher?    @relation(fields: [voucherId], references: [id], onDelete: SetNull)
+  voucherName    String?     @map("voucher_name")
+  status         OrderStatus @default(PENDING_CONFIRMATION)
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  items OrderItem[]
+
+  @@index([eventId], map: "idx_orders_event")
+  @@index([voucherId], map: "idx_orders_voucher")
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String  @map("order_id")
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  photoId     String  @map("photo_id")
+  photo       Photo   @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  formatLabel String  @map("format_label")
+  price       Decimal @db.Decimal(10, 2)
+
+  @@unique([orderId, photoId])
+  @@map("order_items")
 }

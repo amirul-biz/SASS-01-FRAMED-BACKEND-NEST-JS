@@ -1,0 +1,17 @@
+node_modules
+dist
+generated
+coverage
+.nyc_output
+*.log
+.env*
+!.env.example
+.git
+.vscode
+.idea
+Dockerfile
+.dockerignore
+docker-compose*.yml
+cloudbuild.yaml
+*.md
+.generated

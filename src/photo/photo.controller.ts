@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -26,6 +27,7 @@ import {
   PresignPhotosBatchResponseDto,
   ReuploadPhotoDto,
   ReuploadPhotoResponseDto,
+  UpdatePhotoAlbumCoverDto,
 } from './photo.dto';
 import { PhotoService } from './photo.service';
 
@@ -76,6 +78,17 @@ export class PhotoController {
     @Body() dto: ReuploadPhotoDto,
   ): Promise<ReuploadPhotoResponseDto> {
     return await this.photoService.reupload(user, eventId, photoId, dto);
+  }
+
+  @Patch(':photoId/album-cover')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async setAlbumCover(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('eventId') eventId: string,
+    @Param('photoId') photoId: string,
+    @Body() dto: UpdatePhotoAlbumCoverDto,
+  ): Promise<PhotoResponseDto> {
+    return await this.photoService.setAlbumCover(user, eventId, photoId, dto);
   }
 
   @Delete(':photoId')

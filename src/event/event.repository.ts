@@ -47,6 +47,11 @@ const PUBLISHED_EVENT_DETAIL_SELECT = {
       },
     },
   },
+  photos: {
+    where: { isEventAlbumCover: true, status: 'UPLOADED', deletedAt: null },
+    select: { key: true },
+    orderBy: { createdAt: 'asc' },
+  },
 } satisfies Prisma.EventSelect;
 
 type PublishedEventDetailRow = Prisma.EventGetPayload<{
@@ -76,10 +81,15 @@ function toLatestPublishedEvent(
   };
 }
 
-function toPublishedEventDetail(event: PublishedEventDetailRow): PublishedEventDetail {
+type PublishedEventDetailRaw = Omit<PublishedEventDetail, 'albumCoverPhotoUrls'> & {
+  albumCoverPhotoKeys: string[];
+};
+
+function toPublishedEventDetail(event: PublishedEventDetailRow): PublishedEventDetailRaw {
   return {
     ...toLatestPublishedEvent(event),
     description: event.description,
+    albumCoverPhotoKeys: event.photos.map((photo) => photo.key),
     pricingBundles: event.pricingBundles.map(({ pricingBundle }) => ({
       id: pricingBundle.id,
       name: pricingBundle.name,
@@ -225,7 +235,7 @@ export class EventRepository {
     };
   }
 
-  async getPublishedDetail(id: string): Promise<PublishedEventDetail | null> {
+  async getPublishedDetail(id: string): Promise<PublishedEventDetailRaw | null> {
     const event = await this.prisma.event.findFirst({
       where: { id, isPublished: true, deletedAt: null },
       select: PUBLISHED_EVENT_DETAIL_SELECT,

@@ -82,6 +82,13 @@ export class PhotoRepository {
     });
   }
 
+  async updateAlbumCover(id: string, isEventAlbumCover: boolean): Promise<Photo> {
+    return await this.prisma.photo.update({
+      where: { id },
+      data: { isEventAlbumCover },
+    });
+  }
+
   async softDelete(id: string): Promise<void> {
     await this.prisma.photo.update({
       where: { id },

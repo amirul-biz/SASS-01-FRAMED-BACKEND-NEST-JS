@@ -84,6 +84,7 @@ export class OrderService {
       items: order.items.map((item) => ({
         id: item.id,
         photoId: item.photoId,
+        photoName: item.photo.originalName,
         formatLabel: item.formatLabel,
         price: Number(item.price),
       })),

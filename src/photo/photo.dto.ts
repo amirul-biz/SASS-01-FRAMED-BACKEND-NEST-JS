@@ -86,6 +86,12 @@ export class ConfirmPhotoUploadDto {
   capturedAt?: string;
 }
 
+export class UpdatePhotoAlbumCoverDto {
+  @ApiProperty({ example: true })
+  @IsBoolean({ message: 'isEventAlbumCover must be a boolean' })
+  isEventAlbumCover!: boolean;
+}
+
 export class ReuploadPhotoDto {
   @ApiProperty({ example: 'DSC_0042.jpg' })
   @IsString({ message: 'File name must be a string' })

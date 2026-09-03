@@ -37,6 +37,11 @@ type PublishedEventCardRow = Prisma.EventGetPayload<{
 const PUBLISHED_EVENT_DETAIL_SELECT = {
   ...PUBLISHED_EVENT_CARD_SELECT,
   description: true,
+  // Override the card's { id, name } select so the checkout WhatsApp handoff can resolve the
+  // photographer's own contact numbers from their profile settings.
+  photographerProfile: {
+    select: { id: true, name: true, phone: true, contactNo: true },
+  },
   pricingBundles: {
     include: {
       pricingBundle: {
@@ -88,6 +93,8 @@ type PublishedEventDetailRaw = Omit<PublishedEventDetail, 'albumCoverPhotoUrls'>
 function toPublishedEventDetail(event: PublishedEventDetailRow): PublishedEventDetailRaw {
   return {
     ...toLatestPublishedEvent(event),
+    photographerPhone: event.photographerProfile.phone,
+    photographerContactNo: event.photographerProfile.contactNo,
     description: event.description,
     albumCoverPhotoKeys: event.photos.map((photo) => photo.key),
     pricingBundles: event.pricingBundles.map(({ pricingBundle }) => ({
@@ -241,6 +248,16 @@ export class EventRepository {
       select: PUBLISHED_EVENT_DETAIL_SELECT,
     });
     return event ? toPublishedEventDetail(event) : null;
+  }
+
+  // Cheap existence check for endpoints (like the photo list) that only need to confirm the
+  // event is published, not load its bundles/vouchers/album-cover join.
+  async existsPublished(id: string): Promise<boolean> {
+    const event = await this.prisma.event.findFirst({
+      where: { id, isPublished: true, deletedAt: null },
+      select: { id: true },
+    });
+    return event !== null;
   }
 
   async softDelete(id: string): Promise<void> {

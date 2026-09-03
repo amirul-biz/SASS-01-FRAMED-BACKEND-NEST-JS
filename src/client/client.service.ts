@@ -68,6 +68,9 @@ export class ClientService {
     return await this.photoService.listPublishedEventPhotos(id, {
       pageNumber: query.pageNumber,
       pageSize: query.pageSize,
+      search: query.search,
+      capturedFrom: query.capturedFrom,
+      capturedTo: query.capturedTo,
     });
   }
 

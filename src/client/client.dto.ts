@@ -9,7 +9,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -172,6 +174,16 @@ export class ClientEventDetailDto extends ClientLatestEventDto {
   @ApiPropertyOptional({ nullable: true })
   @IsString()
   @IsOptional()
+  photographerPhone!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  photographerContactNo!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
   description!: string | null;
 
   @ApiProperty({ type: [ClientEventPricingBundleDto] })
@@ -220,6 +232,22 @@ export class ClientEventPhotoListQueryDto {
   })
   @IsOptional()
   pageSize: number = CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_SIZE;
+
+  @ApiPropertyOptional({ description: 'Filters to photos whose original filename contains this text (case-insensitive).' })
+  @IsString()
+  @MaxLength(120)
+  @IsOptional()
+  search?: string;
+
+  @ApiPropertyOptional({ example: '10:00', description: 'Time-of-day lower bound (HH:mm, 24h) on when the photo was captured.' })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'capturedFrom must be in HH:mm format' })
+  @IsOptional()
+  capturedFrom?: string;
+
+  @ApiPropertyOptional({ example: '11:00', description: 'Time-of-day upper bound (HH:mm, 24h) on when the photo was captured.' })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'capturedTo must be in HH:mm format' })
+  @IsOptional()
+  capturedTo?: string;
 }
 
 export class PaginatedClientEventPhotoListResponseDto {

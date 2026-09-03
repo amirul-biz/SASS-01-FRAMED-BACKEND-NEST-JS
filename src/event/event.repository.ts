@@ -243,6 +243,16 @@ export class EventRepository {
     return event ? toPublishedEventDetail(event) : null;
   }
 
+  // Cheap existence check for endpoints (like the photo list) that only need to confirm the
+  // event is published, not load its bundles/vouchers/album-cover join.
+  async existsPublished(id: string): Promise<boolean> {
+    const event = await this.prisma.event.findFirst({
+      where: { id, isPublished: true, deletedAt: null },
+      select: { id: true },
+    });
+    return event !== null;
+  }
+
   async softDelete(id: string): Promise<void> {
     await this.prisma.event.update({
       where: { id },

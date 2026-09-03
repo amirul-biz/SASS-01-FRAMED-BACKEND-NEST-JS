@@ -25,6 +25,16 @@ import type { PaginatedPublicPhotoList } from './photo.interface';
 
 const PRESIGN_EXPIRES_IN_SECONDS = 1800;
 
+// DTO validation already guarantees HH:mm shape (see ClientEventPhotoListQueryDto), so this only
+// ever runs on well-formed input.
+function toMinuteOfDay(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const [hourStr, minuteStr] = value.split(':');
+  return Number(hourStr) * 60 + Number(minuteStr);
+}
+
 @Injectable()
 export class PhotoService {
   constructor(
@@ -166,15 +176,21 @@ export class PhotoService {
 
   async listPublishedEventPhotos(
     eventId: string,
-    query: { pageNumber: number; pageSize: number },
+    query: { pageNumber: number; pageSize: number; search?: string; capturedFrom?: string; capturedTo?: string },
   ): Promise<PaginatedPublicPhotoList> {
-    await this.eventService.getPublishedEventDetail(eventId);
+    // Cheap existence check only — the bundles/vouchers/album-cover join that
+    // getPublishedEventDetail does is irrelevant here and was costing a second query per page.
+    await this.eventService.assertPublished(eventId);
     const skip = (query.pageNumber - 1) * query.pageSize;
+    const search = query.search?.trim() || undefined;
 
     const { items, totalItemCount } =
       await this.photoRepository.getManyPublishedByEvent(eventId, {
         skip,
         take: query.pageSize,
+        search,
+        fromMinute: toMinuteOfDay(query.capturedFrom),
+        toMinute: toMinuteOfDay(query.capturedTo),
       });
 
     return {

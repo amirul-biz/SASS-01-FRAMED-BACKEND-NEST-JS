@@ -149,6 +149,15 @@ export class EventService {
     };
   }
 
+  // Same not-found contract as getPublishedEventDetail, without the bundles/vouchers/album-cover
+  // join — for callers (like the photo list) that only need to confirm the event is published.
+  async assertPublished(id: string): Promise<void> {
+    const exists = await this.eventRepository.existsPublished(id);
+    if (!exists) {
+      throw new NotFoundException('Event not found');
+    }
+  }
+
   async getPublishedEventList(filters: {
     search?: string;
     dateFrom?: string;

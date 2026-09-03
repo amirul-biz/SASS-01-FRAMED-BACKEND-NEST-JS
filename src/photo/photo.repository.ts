@@ -34,7 +34,10 @@ export class PhotoRepository {
     const [items, totalItemCount] = await this.prisma.$transaction([
       this.prisma.photo.findMany({
         where,
-        orderBy: [{ capturedAt: { sort: 'asc', nulls: 'last' } }, { uploadedAt: 'asc' }],
+        // id is a tiebreaker: captured_at/uploaded_at are neither unique nor always distinct
+        // (burst shots share a second, PENDING rows have no uploaded_at), so without it offset
+        // pagination can duplicate or skip rows across pages when ties straddle a page boundary.
+        orderBy: [{ capturedAt: { sort: 'asc', nulls: 'last' } }, { uploadedAt: 'asc' }, { id: 'asc' }],
         skip,
         take,
       }),
@@ -46,14 +49,32 @@ export class PhotoRepository {
 
   async getManyPublishedByEvent(
     eventId: string,
-    { skip, take }: { skip: number; take: number },
+    {
+      skip,
+      take,
+      search,
+      fromMinute,
+      toMinute,
+    }: { skip: number; take: number; search?: string; fromMinute?: number; toMinute?: number },
   ): Promise<PaginatedPhotos<Photo>> {
-    const where = { eventId, status: 'UPLOADED' as const, deletedAt: null };
+    const hasMinuteFilter = fromMinute !== undefined || toMinute !== undefined;
+    const where = {
+      eventId,
+      status: 'UPLOADED' as const,
+      deletedAt: null,
+      ...(search && { originalName: { contains: search, mode: 'insensitive' as const } }),
+      ...(hasMinuteFilter && {
+        capturedMinuteOfDay: {
+          ...(fromMinute !== undefined && { gte: fromMinute }),
+          ...(toMinute !== undefined && { lte: toMinute }),
+        },
+      }),
+    };
 
     const [items, totalItemCount] = await this.prisma.$transaction([
       this.prisma.photo.findMany({
         where,
-        orderBy: [{ capturedAt: { sort: 'asc', nulls: 'last' } }, { uploadedAt: 'asc' }],
+        orderBy: [{ capturedAt: { sort: 'asc', nulls: 'last' } }, { uploadedAt: 'asc' }, { id: 'asc' }],
         skip,
         take,
       }),

@@ -47,6 +47,8 @@ export interface PublishedEventPricingBundle {
 }
 
 export interface PublishedEventDetail extends LatestPublishedEvent {
+  photographerPhone: string | null;
+  photographerContactNo: string | null;
   description: string | null;
   pricingBundles: PublishedEventPricingBundle[];
   albumCoverPhotoUrls: string[];

@@ -174,6 +174,16 @@ export class ClientEventDetailDto extends ClientLatestEventDto {
   @ApiPropertyOptional({ nullable: true })
   @IsString()
   @IsOptional()
+  photographerPhone!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  photographerContactNo!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
   description!: string | null;
 
   @ApiProperty({ type: [ClientEventPricingBundleDto] })

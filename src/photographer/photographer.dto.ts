@@ -108,6 +108,10 @@ export class PhotographerProfileResponseDto {
   @ApiProperty() @Type(() => Date) @IsDate() updatedAt!: Date;
 }
 
+export class ProfileCompletenessResponseDto {
+  @ApiProperty() @IsBoolean() isComplete!: boolean;
+}
+
 export class UpdatePhotographerProfileDto {
   @ApiPropertyOptional({ example: 'Jane Doe' })
   @IsString({ message: 'Name must be a string' })

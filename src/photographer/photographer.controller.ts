@@ -17,6 +17,7 @@ import {
   PhotographerProfileResponseDto,
   PresignProfileImageUploadDto,
   PresignProfileImageUploadResponseDto,
+  ProfileCompletenessResponseDto,
   RegisterPhotographerInputDto,
   RegisterPhotographerOutputDto,
   UpdatePhotographerProfileDto,
@@ -106,6 +107,16 @@ export class PhotographerController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<PhotographerProfileResponseDto> {
     return await this.photographerService.getMyProfile(user);
+  }
+
+  @Get('profile/completeness')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  async getProfileCompleteness(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProfileCompletenessResponseDto> {
+    return await this.photographerService.getProfileCompleteness(user);
   }
 
   @Patch('profile')

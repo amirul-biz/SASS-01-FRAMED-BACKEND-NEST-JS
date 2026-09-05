@@ -15,6 +15,7 @@ import {
   PhotographerProfileResponseDto,
   PresignProfileImageUploadDto,
   PresignProfileImageUploadResponseDto,
+  ProfileCompletenessResponseDto,
   RegisterPhotographerInputDto,
   RegisterPhotographerOutputDto,
   UpdatePhotographerProfileDto,
@@ -107,6 +108,24 @@ export class PhotographerService {
     }
 
     return profile;
+  }
+
+  async getProfileCompleteness(
+    user: AuthenticatedUser,
+  ): Promise<ProfileCompletenessResponseDto> {
+    const profile = await this.getMyProfile(user);
+    const REQUIRED_FIELDS = [
+      'companyName',
+      'phone',
+      'contactNo',
+      'bio',
+    ] as const;
+
+    const isComplete = REQUIRED_FIELDS.every((field) =>
+      Boolean(profile[field]?.trim()),
+    );
+
+    return { isComplete };
   }
 
   async updateMyProfile(

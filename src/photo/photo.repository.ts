@@ -1,12 +1,33 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
-import type { Photo } from '../../generated/prisma/client';
+import type { Photo, Prisma } from '../../generated/prisma/client';
 import type { PhotoUploadStatus } from '../../generated/prisma/enums';
 import type {
   CreatePendingPhotoData,
   PaginatedPhotos,
   UpdatePhotoStatusData,
 } from './photo.interface';
+
+// The frontend sends fromMinute/toMinute already converted to UTC time-of-day (see
+// client-event.util.ts's toUtcTimeOfDay), so a range like local 06:00-12:00 (Malaysia, UTC+8)
+// arrives as UTC 22:00-04:00 — fromMinute > toMinute, wrapping past midnight. A plain gte/lte AND
+// would then never match anything, so a wrapped range is matched as gte OR lte instead.
+function buildMinuteOfDayWhere(
+  fromMinute: number | undefined,
+  toMinute: number | undefined,
+): Prisma.PhotoWhereInput {
+  if (fromMinute !== undefined && toMinute !== undefined && fromMinute > toMinute) {
+    return {
+      OR: [{ capturedMinuteOfDay: { gte: fromMinute } }, { capturedMinuteOfDay: { lte: toMinute } }],
+    };
+  }
+  return {
+    capturedMinuteOfDay: {
+      ...(fromMinute !== undefined && { gte: fromMinute }),
+      ...(toMinute !== undefined && { lte: toMinute }),
+    },
+  };
+}
 
 @Injectable()
 export class PhotoRepository {
@@ -63,12 +84,7 @@ export class PhotoRepository {
       status: 'UPLOADED' as const,
       deletedAt: null,
       ...(search && { originalName: { contains: search, mode: 'insensitive' as const } }),
-      ...(hasMinuteFilter && {
-        capturedMinuteOfDay: {
-          ...(fromMinute !== undefined && { gte: fromMinute }),
-          ...(toMinute !== undefined && { lte: toMinute }),
-        },
-      }),
+      ...(hasMinuteFilter && buildMinuteOfDayWhere(fromMinute, toMinute)),
     };
 
     const [items, totalItemCount] = await this.prisma.$transaction([

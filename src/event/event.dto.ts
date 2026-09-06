@@ -11,7 +11,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
   Max,
   MaxLength,
   Min,
@@ -51,11 +50,11 @@ export class CreateEventDto {
   eventEndDate!: string;
 
   @ApiPropertyOptional({
-    example: 'https://cdn.example.com/events/abc/cover.jpg',
+    example: 'events/abc/xyz-cover.jpg',
   })
-  @IsUrl({}, { message: 'Cover photo URL must be a valid URL' })
+  @IsString({ message: 'Cover photo key must be a string' })
   @IsOptional()
-  coverPhotoUrl?: string;
+  coverPhotoKey?: string;
 
   @ApiPropertyOptional({ type: [String], example: ['bundle-1', 'bundle-2'] })
   @IsArray()
@@ -98,11 +97,11 @@ export class UpdateEventDto {
   eventEndDate?: string;
 
   @ApiPropertyOptional({
-    example: 'https://cdn.example.com/events/abc/cover.jpg',
+    example: 'events/abc/xyz-cover.jpg',
   })
-  @IsUrl({}, { message: 'Cover photo URL must be a valid URL' })
+  @IsString({ message: 'Cover photo key must be a string' })
   @IsOptional()
-  coverPhotoUrl?: string;
+  coverPhotoKey?: string;
 
   @ApiPropertyOptional({ example: true })
   @IsBoolean({ message: 'isPublished must be a boolean' })

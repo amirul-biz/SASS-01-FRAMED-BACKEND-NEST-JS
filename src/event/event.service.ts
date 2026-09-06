@@ -40,9 +40,9 @@ export class EventService {
     user: AuthenticatedUser,
     dto: CreateEventDto,
   ): Promise<EventResponseDto> {
-    this.assertOwnedCoverPhotoUrl(dto.coverPhotoUrl);
     const photographerId =
       await this.photographerService.getOwnPhotographerProfileId(user);
+    this.assertOwnedCoverPhotoKey(photographerId, dto.coverPhotoKey);
     await this.assertOwnedPricingBundles(photographerId, dto.pricingBundleIds);
 
     return await this.runWithDateRangeCheck(() =>
@@ -87,9 +87,9 @@ export class EventService {
     id: string,
     dto: UpdateEventDto,
   ): Promise<EventResponseDto> {
-    this.assertOwnedCoverPhotoUrl(dto.coverPhotoUrl);
     const photographerId =
       await this.photographerService.getOwnPhotographerProfileId(user);
+    this.assertOwnedCoverPhotoKey(photographerId, dto.coverPhotoKey);
     await this.assertOwnedPricingBundles(photographerId, dto.pricingBundleIds);
     const existing = await this.getOwnedEventOrThrow(id, photographerId);
 
@@ -190,12 +190,15 @@ export class EventService {
     return event;
   }
 
-  private assertOwnedCoverPhotoUrl(coverPhotoUrl: string | undefined): void {
+  private assertOwnedCoverPhotoKey(
+    photographerId: string,
+    coverPhotoKey: string | undefined,
+  ): void {
     if (
-      coverPhotoUrl !== undefined &&
-      !this.publicStorageService.isOwnPublicUrl(coverPhotoUrl)
+      coverPhotoKey !== undefined &&
+      !coverPhotoKey.startsWith(`events/${photographerId}/`)
     ) {
-      throw new BadRequestException('Invalid cover photo URL');
+      throw new BadRequestException('Invalid cover photo key');
     }
   }
 

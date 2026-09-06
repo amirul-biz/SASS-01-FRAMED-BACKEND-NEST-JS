@@ -68,8 +68,8 @@ model PhotographerProfile {
   companyName     String?      @map("company_name")
   phone           String?
   contactNo       String?      @map("contact_no")
-  profileImageUrl String?      @map("profile_image_url")
-  bannerUrl       String?      @map("banner_url")
+  profileImageKey String?      @map("profile_image_key")
+  bannerKey       String?      @map("banner_key")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
@@ -90,7 +90,7 @@ model Event {
   eventEndDate        DateTime            @map("event_end_date") @db.Timestamptz(6)
   isPublished         Boolean             @default(false) @map("is_published")
   publishedAt         DateTime?           @map("published_at") @db.Timestamptz(6)
-  coverPhotoUrl       String?             @map("cover_photo_url")
+  coverPhotoKey       String?             @map("cover_photo_key")
   deletedAt           DateTime?           @map("deleted_at") @db.Timestamptz(6)
   createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)

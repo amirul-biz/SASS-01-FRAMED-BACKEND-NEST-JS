@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
+import { PublicStorageService } from '../config/storage/public-storage.service';
 import { UserRole } from '../../generated/prisma/enums';
 import type { PhotographerProfile } from '../../generated/prisma/client';
-import type { UpdatePhotographerProfileDto } from './photographer.dto';
+import type {
+  PhotographerProfileResponseDto,
+  UpdatePhotographerProfileDto,
+} from './photographer.dto';
 import type {
   CreatePhotographerProfileData,
   CreatePhotographerProfileResult,
@@ -10,9 +14,35 @@ import type {
   TopPhotographerByEventCount,
 } from './photographer.interface';
 
+function toProfileResponse(
+  profile: PhotographerProfile,
+  publicStorageService: PublicStorageService,
+): PhotographerProfileResponseDto {
+  return {
+    id: profile.id,
+    userPlatformId: profile.userPlatformId,
+    name: profile.name,
+    bio: profile.bio,
+    companyName: profile.companyName,
+    phone: profile.phone,
+    contactNo: profile.contactNo,
+    profileImageUrl: profile.profileImageKey
+      ? publicStorageService.buildPublicUrl(profile.profileImageKey)
+      : null,
+    bannerUrl: profile.bannerKey
+      ? publicStorageService.buildPublicUrl(profile.bannerKey)
+      : null,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
+}
+
 @Injectable()
 export class PhotographerRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly publicStorageService: PublicStorageService,
+  ) {}
 
   async createPhotographerWithTransaction(
     data: CreatePhotographerProfileData,
@@ -48,17 +78,18 @@ export class PhotographerRepository {
 
   async getProfileByUserPlatformId(
     userPlatformId: string,
-  ): Promise<PhotographerProfile | null> {
-    return await this.prisma.photographerProfile.findUnique({
+  ): Promise<PhotographerProfileResponseDto | null> {
+    const profile = await this.prisma.photographerProfile.findUnique({
       where: { userPlatformId },
     });
+    return profile ? toProfileResponse(profile, this.publicStorageService) : null;
   }
 
   async updateProfileByUserPlatformId(
     userPlatformId: string,
     data: UpdatePhotographerProfileDto,
-  ): Promise<PhotographerProfile> {
-    return await this.prisma.photographerProfile.update({
+  ): Promise<PhotographerProfileResponseDto> {
+    const profile = await this.prisma.photographerProfile.update({
       where: { userPlatformId },
       data: {
         ...(data.name !== undefined && { name: data.name }),
@@ -68,12 +99,13 @@ export class PhotographerRepository {
         }),
         ...(data.phone !== undefined && { phone: data.phone }),
         ...(data.contactNo !== undefined && { contactNo: data.contactNo }),
-        ...(data.profileImageUrl !== undefined && {
-          profileImageUrl: data.profileImageUrl,
+        ...(data.profileImageKey !== undefined && {
+          profileImageKey: data.profileImageKey,
         }),
-        ...(data.bannerUrl !== undefined && { bannerUrl: data.bannerUrl }),
+        ...(data.bannerKey !== undefined && { bannerKey: data.bannerKey }),
       },
     });
+    return toProfileResponse(profile, this.publicStorageService);
   }
 
   async getPublicList(options: {
@@ -110,15 +142,29 @@ export class PhotographerRepository {
 
     const profiles = await this.prisma.photographerProfile.findMany({
       where: { id: { in: grouped.map((g) => g.photographerId) } },
-      select: { id: true, name: true, bio: true, profileImageUrl: true, bannerUrl: true },
+      select: { id: true, name: true, bio: true, profileImageKey: true, bannerKey: true },
     });
     const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
 
     return grouped.flatMap((group) => {
       const profile = profileById.get(group.photographerId);
-      return profile
-        ? [{ ...profile, eventCount: group._count.id }]
-        : [];
+      if (!profile) {
+        return [];
+      }
+      return [
+        {
+          id: profile.id,
+          name: profile.name,
+          bio: profile.bio,
+          profileImageUrl: profile.profileImageKey
+            ? this.publicStorageService.buildPublicUrl(profile.profileImageKey)
+            : null,
+          bannerUrl: profile.bannerKey
+            ? this.publicStorageService.buildPublicUrl(profile.bannerKey)
+            : null,
+          eventCount: group._count.id,
+        },
+      ];
     });
   }
 
@@ -129,8 +175,8 @@ export class PhotographerRepository {
         id: true,
         name: true,
         bio: true,
-        profileImageUrl: true,
-        bannerUrl: true,
+        profileImageKey: true,
+        bannerKey: true,
         createdAt: true,
       },
     });
@@ -160,7 +206,16 @@ export class PhotographerRepository {
     ]);
 
     return {
-      ...profile,
+      id: profile.id,
+      name: profile.name,
+      bio: profile.bio,
+      profileImageUrl: profile.profileImageKey
+        ? this.publicStorageService.buildPublicUrl(profile.profileImageKey)
+        : null,
+      bannerUrl: profile.bannerKey
+        ? this.publicStorageService.buildPublicUrl(profile.bannerKey)
+        : null,
+      createdAt: profile.createdAt,
       eventCount,
       photoCount,
       topCategory: topCategoryGroups[0]?.category ?? null,

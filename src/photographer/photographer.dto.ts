@@ -4,7 +4,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
   MinLength,
   IsBoolean,
   IsDate,
@@ -141,18 +140,18 @@ export class UpdatePhotographerProfileDto {
   contactNo?: string;
 
   @ApiPropertyOptional({
-    example: 'https://cdn.example.com/photographer-profiles/abc/xyz.jpg',
+    example: 'photographer-profiles/abc/xyz-headshot.jpg',
   })
-  @IsUrl({}, { message: 'Profile image URL must be a valid URL' })
+  @IsString({ message: 'Profile image key must be a string' })
   @IsOptional()
-  profileImageUrl?: string;
+  profileImageKey?: string;
 
   @ApiPropertyOptional({
-    example: 'https://cdn.example.com/photographer-profiles/abc/banner.jpg',
+    example: 'photographer-profiles/abc/banner/xyz-banner.jpg',
   })
-  @IsUrl({}, { message: 'Banner URL must be a valid URL' })
+  @IsString({ message: 'Banner key must be a string' })
   @IsOptional()
-  bannerUrl?: string;
+  bannerKey?: string;
 }
 
 const ALLOWED_PROFILE_IMAGE_MIME_TYPES = [

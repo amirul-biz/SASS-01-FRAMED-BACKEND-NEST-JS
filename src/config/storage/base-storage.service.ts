@@ -95,12 +95,6 @@ export abstract class BaseStorageService {
     return `${baseUrl.replace(/\/$/, '')}/${key}`;
   }
 
-  isOwnPublicUrl(url: string): boolean {
-    return (
-      !!this.publicUrl && url.startsWith(this.publicUrl.replace(/\/$/, ''))
-    );
-  }
-
   private requireClient(): { client: S3Client; bucketName: string } {
     if (!this.s3Client || !this.bucketName) {
       throw new Error(

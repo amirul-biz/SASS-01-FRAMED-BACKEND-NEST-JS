@@ -58,10 +58,38 @@ export class PhotographerService {
           phone: input.phone,
         });
 
+      const {
+        id,
+        userPlatformId,
+        name,
+        bio,
+        companyName,
+        phone,
+        contactNo,
+        createdAt,
+        updatedAt,
+      } = result.photographerProfile;
+
       const output = new RegisterPhotographerOutputDto();
       output.success = true;
       output.message = 'Photographer registered successfully';
-      output.data = result;
+      output.data = {
+        user: result.user,
+        userPlatform: result.userPlatform,
+        photographerProfile: {
+          id,
+          userPlatformId,
+          name,
+          bio,
+          companyName,
+          phone,
+          contactNo,
+          profileImageUrl: null,
+          bannerUrl: null,
+          createdAt,
+          updatedAt,
+        },
+      };
 
       return output;
     } catch (error) {
@@ -132,21 +160,22 @@ export class PhotographerService {
     user: AuthenticatedUser,
     dto: UpdatePhotographerProfileDto,
   ): Promise<PhotographerProfileResponseDto> {
-    if (
-      dto.profileImageUrl !== undefined &&
-      !this.publicStorageService.isOwnPublicUrl(dto.profileImageUrl)
-    ) {
-      throw new BadRequestException('Invalid profile image URL');
-    }
-
-    if (
-      dto.bannerUrl !== undefined &&
-      !this.publicStorageService.isOwnPublicUrl(dto.bannerUrl)
-    ) {
-      throw new BadRequestException('Invalid banner URL');
-    }
-
     const userPlatformId = this.getOwnPhotographerPlatformId(user);
+
+    if (
+      dto.profileImageKey !== undefined &&
+      !dto.profileImageKey.startsWith(`photographer-profiles/${userPlatformId}/`)
+    ) {
+      throw new BadRequestException('Invalid profile image key');
+    }
+
+    if (
+      dto.bannerKey !== undefined &&
+      !dto.bannerKey.startsWith(`photographer-profiles/${userPlatformId}/banner/`)
+    ) {
+      throw new BadRequestException('Invalid banner key');
+    }
+
     return await this.photographerRepository.updateProfileByUserPlatformId(
       userPlatformId,
       dto,

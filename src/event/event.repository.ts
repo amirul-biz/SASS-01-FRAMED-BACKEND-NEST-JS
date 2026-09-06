@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
+import { PublicStorageService } from '../config/storage/public-storage.service';
 import type { Event, Prisma } from '../../generated/prisma/client';
 import { VoucherDiscountType } from '../../generated/prisma/client';
 import type { VoucherConditionDto, WireVoucherDiscountType } from '../vouchers/vouchers.dto';
@@ -21,7 +22,7 @@ const PUBLISHED_EVENT_CARD_SELECT = {
   title: true,
   category: true,
   location: true,
-  coverPhotoUrl: true,
+  coverPhotoKey: true,
   eventStartDate: true,
   eventEndDate: true,
   photographerProfile: { select: { id: true, name: true } },
@@ -71,13 +72,16 @@ type EventWithBundlesRow = Event & Prisma.EventGetPayload<{ include: typeof EVEN
 
 function toLatestPublishedEvent(
   event: PublishedEventCardRow,
+  publicStorageService: PublicStorageService,
 ): LatestPublishedEvent {
   return {
     id: event.id,
     title: event.title,
     category: event.category,
     location: event.location,
-    coverPhotoUrl: event.coverPhotoUrl,
+    coverPhotoUrl: event.coverPhotoKey
+      ? publicStorageService.buildPublicUrl(event.coverPhotoKey)
+      : null,
     eventStartDate: event.eventStartDate,
     eventEndDate: event.eventEndDate,
     photoCount: event._count.photos,
@@ -90,9 +94,12 @@ type PublishedEventDetailRaw = Omit<PublishedEventDetail, 'albumCoverPhotoUrls'>
   albumCoverPhotoKeys: string[];
 };
 
-function toPublishedEventDetail(event: PublishedEventDetailRow): PublishedEventDetailRaw {
+function toPublishedEventDetail(
+  event: PublishedEventDetailRow,
+  publicStorageService: PublicStorageService,
+): PublishedEventDetailRaw {
   return {
-    ...toLatestPublishedEvent(event),
+    ...toLatestPublishedEvent(event, publicStorageService),
     photographerPhone: event.photographerProfile.phone,
     photographerContactNo: event.photographerProfile.contactNo,
     description: event.description,
@@ -117,7 +124,10 @@ function toPublishedEventDetail(event: PublishedEventDetailRow): PublishedEventD
   };
 }
 
-function toEventResponse(event: EventWithBundlesRow): EventResponseDto {
+function toEventResponse(
+  event: EventWithBundlesRow,
+  publicStorageService: PublicStorageService,
+): EventResponseDto {
   return {
     id: event.id,
     photographerId: event.photographerId,
@@ -129,7 +139,9 @@ function toEventResponse(event: EventWithBundlesRow): EventResponseDto {
     eventEndDate: event.eventEndDate,
     isPublished: event.isPublished,
     publishedAt: event.publishedAt,
-    coverPhotoUrl: event.coverPhotoUrl,
+    coverPhotoUrl: event.coverPhotoKey
+      ? publicStorageService.buildPublicUrl(event.coverPhotoKey)
+      : null,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
     pricingBundleIds: event.pricingBundles.map((b) => b.pricingBundleId),
@@ -138,7 +150,10 @@ function toEventResponse(event: EventWithBundlesRow): EventResponseDto {
 
 @Injectable()
 export class EventRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly publicStorageService: PublicStorageService,
+  ) {}
 
   async create(photographerId: string, data: CreateEventDto): Promise<EventResponseDto> {
     const event = await this.prisma.event.create({
@@ -150,7 +165,7 @@ export class EventRepository {
         location: data.location,
         eventStartDate: new Date(data.eventStartDate),
         eventEndDate: new Date(data.eventEndDate),
-        coverPhotoUrl: data.coverPhotoUrl,
+        coverPhotoKey: data.coverPhotoKey,
         ...(data.pricingBundleIds && {
           pricingBundles: {
             create: data.pricingBundleIds.map((pricingBundleId) => ({ pricingBundleId })),
@@ -159,7 +174,7 @@ export class EventRepository {
       },
       include: EVENT_WITH_BUNDLES_INCLUDE,
     });
-    return toEventResponse(event);
+    return toEventResponse(event, this.publicStorageService);
   }
 
   async getManyByPhotographer(
@@ -179,7 +194,10 @@ export class EventRepository {
       this.prisma.event.count({ where }),
     ]);
 
-    return { items: items.map(toEventResponse), totalItemCount };
+    return {
+      items: items.map((event) => toEventResponse(event, this.publicStorageService)),
+      totalItemCount,
+    };
   }
 
   async getOneOwned(id: string, photographerId: string): Promise<EventResponseDto | null> {
@@ -187,7 +205,7 @@ export class EventRepository {
       where: { id, photographerId, deletedAt: null },
       include: EVENT_WITH_BUNDLES_INCLUDE,
     });
-    return event ? toEventResponse(event) : null;
+    return event ? toEventResponse(event, this.publicStorageService) : null;
   }
 
   async countOwnedBundles(photographerId: string, pricingBundleIds: string[]): Promise<number> {
@@ -211,7 +229,7 @@ export class EventRepository {
           include: EVENT_WITH_BUNDLES_INCLUDE,
         }),
       ]);
-      return toEventResponse(event);
+      return toEventResponse(event, this.publicStorageService);
     }
 
     const event = await this.prisma.event.update({
@@ -219,7 +237,7 @@ export class EventRepository {
       data: this.buildUpdateData(data),
       include: EVENT_WITH_BUNDLES_INCLUDE,
     });
-    return toEventResponse(event);
+    return toEventResponse(event, this.publicStorageService);
   }
 
   private buildUpdateData(data: UpdateEventRepositoryData): Prisma.EventUpdateInput {
@@ -234,8 +252,8 @@ export class EventRepository {
       ...(data.eventEndDate !== undefined && {
         eventEndDate: new Date(data.eventEndDate),
       }),
-      ...(data.coverPhotoUrl !== undefined && {
-        coverPhotoUrl: data.coverPhotoUrl,
+      ...(data.coverPhotoKey !== undefined && {
+        coverPhotoKey: data.coverPhotoKey,
       }),
       ...(data.isPublished !== undefined && { isPublished: data.isPublished }),
       ...(data.publishedAt !== undefined && { publishedAt: data.publishedAt }),
@@ -247,7 +265,7 @@ export class EventRepository {
       where: { id, isPublished: true, deletedAt: null },
       select: PUBLISHED_EVENT_DETAIL_SELECT,
     });
-    return event ? toPublishedEventDetail(event) : null;
+    return event ? toPublishedEventDetail(event, this.publicStorageService) : null;
   }
 
   // Cheap existence check for endpoints (like the photo list) that only need to confirm the
@@ -275,7 +293,7 @@ export class EventRepository {
       select: PUBLISHED_EVENT_CARD_SELECT,
     });
 
-    return events.map(toLatestPublishedEvent);
+    return events.map((event) => toLatestPublishedEvent(event, this.publicStorageService));
   }
 
   async getPublishedList(filters: {
@@ -314,6 +332,9 @@ export class EventRepository {
       this.prisma.event.count({ where }),
     ]);
 
-    return { items: events.map(toLatestPublishedEvent), totalItemCount };
+    return {
+      items: events.map((event) => toLatestPublishedEvent(event, this.publicStorageService)),
+      totalItemCount,
+    };
   }
 }

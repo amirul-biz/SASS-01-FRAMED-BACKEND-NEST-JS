@@ -133,6 +133,15 @@ export class PhotoRepository {
     });
   }
 
+  // eventId-scoped so ids belonging to another event can never be matched.
+  async softDeleteMany(ids: string[], eventId: string): Promise<number> {
+    const result = await this.prisma.photo.updateMany({
+      where: { id: { in: ids }, eventId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+    return result.count;
+  }
+
   async getPendingOlderThan(cutoff: Date): Promise<Photo[]> {
     return await this.prisma.photo.findMany({
       where: { status: 'PENDING', deletedAt: null, createdAt: { lt: cutoff } },

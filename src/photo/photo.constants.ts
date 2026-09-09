@@ -1,4 +1,7 @@
 export const PHOTO_BATCH_MAX_FILES = 50;
+// Deletes are a single scoped updateMany per request — much cheaper than presigning — so the
+// batch cap here matches the largest photo-list page (500) rather than the presign batch limit.
+export const PHOTO_DELETE_BATCH_MAX = 500;
 
 export const PHOTO_ALLOWED_MIME_TYPES = [
   'image/jpeg',

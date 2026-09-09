@@ -236,6 +236,17 @@ export class PhotoService {
     await this.photoRepository.softDelete(photo.id);
   }
 
+  // Soft-deletes many photos of one event in a single statement. IDs that don't belong to this
+  // event (or were already deleted) are simply not matched — the count reflects what was deleted.
+  async deletePhotosBatch(
+    user: AuthenticatedUser,
+    eventId: string,
+    photoIds: string[],
+  ): Promise<number> {
+    await this.eventService.getMyEvent(user, eventId);
+    return await this.photoRepository.softDeleteMany(photoIds, eventId);
+  }
+
   private async getOwnedPhotoOrThrow(
     eventId: string,
     photoId: string,

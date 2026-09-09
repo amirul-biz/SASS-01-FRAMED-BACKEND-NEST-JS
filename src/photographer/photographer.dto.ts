@@ -109,6 +109,10 @@ export class PhotographerProfileResponseDto {
 
 export class ProfileCompletenessResponseDto {
   @ApiProperty() @IsBoolean() isComplete!: boolean;
+
+  @ApiProperty({ type: [String], example: ['Contact Number'] })
+  @IsString({ each: true })
+  missingFields!: string[];
 }
 
 export class UpdatePhotographerProfileDto {

@@ -142,18 +142,19 @@ export class PhotographerService {
     user: AuthenticatedUser,
   ): Promise<ProfileCompletenessResponseDto> {
     const profile = await this.getMyProfile(user);
+    // name is enforced required at registration and email lives on the user
+    // record, so contactNo is the only field that can actually be missing —
+    // but check name too as a defensive belt-and-suspenders.
     const REQUIRED_FIELDS = [
-      'companyName',
-      'phone',
-      'contactNo',
-      'bio',
+      ['name', 'Name'],
+      ['contactNo', 'Contact Number'],
     ] as const;
 
-    const isComplete = REQUIRED_FIELDS.every((field) =>
-      Boolean(profile[field]?.trim()),
-    );
+    const missingFields = REQUIRED_FIELDS.filter(
+      ([field]) => !profile[field]?.trim(),
+    ).map(([, label]) => label);
 
-    return { isComplete };
+    return { isComplete: missingFields.length === 0, missingFields };
   }
 
   async updateMyProfile(

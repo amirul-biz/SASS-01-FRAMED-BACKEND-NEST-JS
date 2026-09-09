@@ -20,6 +20,7 @@ import { UserRole } from '../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../types/express';
 import {
   ConfirmPhotoUploadDto,
+  DeletePhotosBatchDto,
   PaginatedPhotoListResponseDto,
   PhotoListQueryDto,
   PhotoResponseDto,
@@ -99,5 +100,20 @@ export class PhotoController {
   ): Promise<{ success: boolean }> {
     await this.photoService.deletePhoto(user, eventId, photoId);
     return { success: true };
+  }
+
+  @Post('delete-batch')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async deletePhotosBatch(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('eventId') eventId: string,
+    @Body() dto: DeletePhotosBatchDto,
+  ): Promise<{ deletedCount: number }> {
+    const deletedCount = await this.photoService.deletePhotosBatch(
+      user,
+      eventId,
+      dto.photoIds,
+    );
+    return { deletedCount };
   }
 }

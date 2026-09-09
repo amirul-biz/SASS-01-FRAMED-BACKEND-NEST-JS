@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -18,7 +19,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PhotoUploadStatus } from '../../generated/prisma/enums';
-import { PHOTO_ALLOWED_MIME_TYPES, PHOTO_BATCH_MAX_FILES, PHOTO_PAGINATION } from './photo.constants';
+import { PHOTO_ALLOWED_MIME_TYPES, PHOTO_BATCH_MAX_FILES, PHOTO_DELETE_BATCH_MAX, PHOTO_PAGINATION } from './photo.constants';
 
 export class PresignPhotoFileDto {
   @ApiProperty({ example: 'DSC_0042.jpg' })
@@ -90,6 +91,17 @@ export class UpdatePhotoAlbumCoverDto {
   @ApiProperty({ example: true })
   @IsBoolean({ message: 'isEventAlbumCover must be a boolean' })
   isEventAlbumCover!: boolean;
+}
+
+export class DeletePhotosBatchDto {
+  @ApiProperty({ type: [String], example: ['uuid-1', 'uuid-2'] })
+  @IsArray({ message: 'photoIds must be an array' })
+  @ArrayMinSize(1, { message: 'photoIds must not be empty' })
+  @ArrayMaxSize(PHOTO_DELETE_BATCH_MAX, {
+    message: `A batch can contain at most ${PHOTO_DELETE_BATCH_MAX} photos`,
+  })
+  @IsString({ each: true, message: 'Each photoId must be a string' })
+  photoIds!: string[];
 }
 
 export class ReuploadPhotoDto {

@@ -5,7 +5,7 @@ import type { OrderStatus } from '../../generated/prisma/enums';
 import type { CreateOrderDto } from './order.dto';
 
 const PHOTOGRAPHER_ORDER_INCLUDE = {
-  items: { include: { photo: { select: { originalName: true } } } },
+  items: { include: { photo: { select: { originalName: true, key: true } } } },
   event: { select: { id: true, title: true } },
 } satisfies Prisma.OrderInclude;
 
@@ -84,7 +84,7 @@ export class OrderRepository {
           })),
         },
       },
-      include: { items: { include: { photo: { select: { originalName: true } } } } },
+      include: { items: { include: { photo: { select: { originalName: true, key: true } } } } },
     });
   }
 }

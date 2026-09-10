@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { PrivateStorageService } from '../config/storage/private-storage.service';
 import { EventService } from '../event/event.service';
 import { PhotographerService } from '../photographer/photographer.service';
 import type { AuthenticatedUser } from '../types/express';
@@ -23,6 +24,7 @@ export class OrderService {
     private readonly orderRepository: OrderRepository,
     private readonly eventService: EventService,
     private readonly photographerService: PhotographerService,
+    private readonly privateStorageService: PrivateStorageService,
   ) {}
 
   async create(dto: CreateOrderDto): Promise<OrderResponseDto> {
@@ -85,6 +87,7 @@ export class OrderService {
         id: item.id,
         photoId: item.photoId,
         photoName: item.photo.originalName,
+        photoUrl: this.privateStorageService.buildPublicUrl(item.photo.key),
         formatLabel: item.formatLabel,
         price: Number(item.price),
       })),

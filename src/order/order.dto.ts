@@ -89,6 +89,7 @@ export class OrderItemResponseDto {
   @ApiProperty() @IsString() id!: string;
   @ApiProperty() @IsString() photoId!: string;
   @ApiProperty() @IsString() photoName!: string;
+  @ApiProperty() @IsString() photoUrl!: string;
   @ApiProperty() @IsString() formatLabel!: string;
   @ApiProperty() @IsNumber() price!: number;
 }

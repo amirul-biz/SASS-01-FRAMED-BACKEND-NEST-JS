@@ -131,6 +131,11 @@ export class ClientPhotographerProfileDto {
   @ApiPropertyOptional({ nullable: true })
   @IsString()
   @IsOptional()
+  nickname!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
   bio!: string | null;
 
   @ApiPropertyOptional({ nullable: true })

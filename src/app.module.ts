@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AdminModule } from './admin/admin.module';
 import { CommonModule } from './common/common.module';
 import { ClientModule } from './client/client.module';
 import { FirebaseModule } from './config/firebase/firebase.module';
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module';
     OrderModule,
     UsersModule,
     ClientModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

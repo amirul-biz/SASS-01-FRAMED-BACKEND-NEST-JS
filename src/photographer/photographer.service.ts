@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { isUUID } from 'class-validator';
 import { FirebaseService } from '../config/firebase/firebase.service';
 import { PrivateStorageService } from '../config/storage/private-storage.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
@@ -66,6 +68,7 @@ export class PhotographerService {
         companyName,
         phone,
         contactNo,
+        nickname,
         createdAt,
         updatedAt,
       } = result.photographerProfile;
@@ -84,6 +87,7 @@ export class PhotographerService {
           companyName,
           phone,
           contactNo,
+          nickname,
           profileImageUrl: null,
           bannerUrl: null,
           createdAt,
@@ -177,10 +181,27 @@ export class PhotographerService {
       throw new BadRequestException('Invalid banner key');
     }
 
+    if (dto.nickname !== undefined) {
+      const existing = await this.photographerRepository.findByNickname(dto.nickname);
+      const ownProfileId = await this.getOwnPhotographerProfileId(user);
+      if (existing && existing.id !== ownProfileId) {
+        throw new ConflictException('This nickname is already taken');
+      }
+    }
+
     return await this.photographerRepository.updateProfileByUserPlatformId(
       userPlatformId,
       dto,
     );
+  }
+
+  async isNicknameAvailable(user: AuthenticatedUser, nickname: string): Promise<boolean> {
+    const existing = await this.photographerRepository.findByNickname(nickname.toLowerCase());
+    if (!existing) {
+      return true;
+    }
+    const ownProfileId = await this.getOwnPhotographerProfileId(user);
+    return existing.id === ownProfileId;
   }
 
   async presignProfileImageUpload(
@@ -232,8 +253,10 @@ export class PhotographerService {
     return await this.photographerRepository.getPublicList({ search, limit });
   }
 
-  async getPublicProfile(id: string): Promise<PublicPhotographerProfile> {
-    const profile = await this.photographerRepository.getPublicProfileById(id);
+  async getPublicProfile(identifier: string): Promise<PublicPhotographerProfile> {
+    const profile = isUUID(identifier)
+      ? await this.photographerRepository.getPublicProfileById(identifier)
+      : await this.photographerRepository.getPublicProfileByNickname(identifier.toLowerCase());
     if (!profile) {
       throw new NotFoundException('Photographer not found');
     }

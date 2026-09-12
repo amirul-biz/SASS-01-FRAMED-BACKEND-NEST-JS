@@ -68,6 +68,7 @@ model PhotographerProfile {
   companyName     String?      @map("company_name")
   phone           String?
   contactNo       String?      @map("contact_no")
+  nickname        String?      @unique
   profileImageKey String?      @map("profile_image_key")
   bannerKey       String?      @map("banner_key")
   createdAt       DateTime     @default(now()) @map("created_at")

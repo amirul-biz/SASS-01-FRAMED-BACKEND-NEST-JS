@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
 import { UserRole } from '../../generated/prisma/enums';
-import type { PhotographerProfile } from '../../generated/prisma/client';
+import type { Prisma, PhotographerProfile } from '../../generated/prisma/client';
 import type {
   PhotographerProfileResponseDto,
   UpdatePhotographerProfileDto,
@@ -13,6 +13,18 @@ import type {
   PublicPhotographerProfile,
   TopPhotographerByEventCount,
 } from './photographer.interface';
+
+const PUBLIC_PROFILE_SELECT = {
+  id: true,
+  name: true,
+  nickname: true,
+  bio: true,
+  profileImageKey: true,
+  bannerKey: true,
+  createdAt: true,
+} satisfies Prisma.PhotographerProfileSelect;
+
+type PublicProfileRow = Prisma.PhotographerProfileGetPayload<{ select: typeof PUBLIC_PROFILE_SELECT }>;
 
 function toProfileResponse(
   profile: PhotographerProfile,
@@ -26,6 +38,7 @@ function toProfileResponse(
     companyName: profile.companyName,
     phone: profile.phone,
     contactNo: profile.contactNo,
+    nickname: profile.nickname,
     profileImageUrl: profile.profileImageKey
       ? publicStorageService.buildPublicUrl(profile.profileImageKey)
       : null,
@@ -99,6 +112,7 @@ export class PhotographerRepository {
         }),
         ...(data.phone !== undefined && { phone: data.phone }),
         ...(data.contactNo !== undefined && { contactNo: data.contactNo }),
+        ...(data.nickname !== undefined && { nickname: data.nickname }),
         ...(data.profileImageKey !== undefined && {
           profileImageKey: data.profileImageKey,
         }),
@@ -171,20 +185,30 @@ export class PhotographerRepository {
   async getPublicProfileById(id: string): Promise<PublicPhotographerProfile | null> {
     const profile = await this.prisma.photographerProfile.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        bio: true,
-        profileImageKey: true,
-        bannerKey: true,
-        createdAt: true,
-      },
+      select: PUBLIC_PROFILE_SELECT,
     });
+    return profile ? this.buildPublicProfile(profile) : null;
+  }
 
-    if (!profile) {
-      return null;
-    }
+  async getPublicProfileByNickname(nickname: string): Promise<PublicPhotographerProfile | null> {
+    const profile = await this.prisma.photographerProfile.findUnique({
+      where: { nickname },
+      select: PUBLIC_PROFILE_SELECT,
+    });
+    return profile ? this.buildPublicProfile(profile) : null;
+  }
 
+  async findByNickname(nickname: string): Promise<{ id: string } | null> {
+    return await this.prisma.photographerProfile.findUnique({
+      where: { nickname },
+      select: { id: true },
+    });
+  }
+
+  private async buildPublicProfile(
+    profile: PublicProfileRow,
+  ): Promise<PublicPhotographerProfile> {
+    const id = profile.id;
     const [eventCount, photoCount, topCategoryGroups] = await Promise.all([
       this.prisma.event.count({
         where: { photographerId: id, isPublished: true, deletedAt: null },
@@ -208,6 +232,7 @@ export class PhotographerRepository {
     return {
       id: profile.id,
       name: profile.name,
+      nickname: profile.nickname,
       bio: profile.bio,
       profileImageUrl: profile.profileImageKey
         ? this.publicStorageService.buildPublicUrl(profile.profileImageKey)

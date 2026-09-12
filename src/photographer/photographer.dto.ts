@@ -4,12 +4,13 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MinLength,
   IsBoolean,
   IsDate,
   IsNumber,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterPhotographerInputDto {
@@ -97,6 +98,11 @@ export class PhotographerProfileResponseDto {
   @ApiPropertyOptional({ nullable: true })
   @IsString()
   @IsOptional()
+  nickname!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
   profileImageUrl!: string | null;
 
   @ApiPropertyOptional({ nullable: true })
@@ -142,6 +148,14 @@ export class UpdatePhotographerProfileDto {
   @IsString({ message: 'Contact number must be a string' })
   @IsOptional()
   contactNo?: string;
+
+  @ApiPropertyOptional({ example: 'johndoe' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase() : value))
+  @Matches(/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/, {
+    message: 'Nickname must be 3-30 characters: lowercase letters, numbers, and hyphens, no leading/trailing hyphen',
+  })
+  @IsOptional()
+  nickname?: string;
 
   @ApiPropertyOptional({
     example: 'photographer-profiles/abc/xyz-headshot.jpg',

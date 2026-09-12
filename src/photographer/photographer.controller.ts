@@ -6,6 +6,7 @@ import {
   Logger,
   Patch,
   Post,
+  Query,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -117,6 +118,17 @@ export class PhotographerController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ProfileCompletenessResponseDto> {
     return await this.photographerService.getProfileCompleteness(user);
+  }
+
+  @Get('profile/nickname-availability')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  async checkNicknameAvailability(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('nickname') nickname: string,
+  ): Promise<{ available: boolean }> {
+    return { available: await this.photographerService.isNicknameAvailable(user, nickname) };
   }
 
   @Patch('profile')

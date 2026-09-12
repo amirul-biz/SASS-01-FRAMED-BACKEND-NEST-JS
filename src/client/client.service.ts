@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { isUUID } from 'class-validator';
 import { EventService } from '../event/event.service';
 import { PhotoService } from '../photo/photo.service';
 import { PhotographerService } from '../photographer/photographer.service';
@@ -39,11 +40,31 @@ export class ClientService {
   async getEventList(
     query: ClientEventListQueryDto,
   ): Promise<PaginatedClientEventListResponseDto> {
+    // photographerId may be the public UUID or a photographer's vanity nickname (profile pages
+    // link by whichever the URL currently shows) — resolve a nickname to its real id the same
+    // way getPublicProfile does, so filtering never silently matches zero events.
+    let photographerId = query.photographerId;
+    if (photographerId && !isUUID(photographerId)) {
+      const profile = await this.photographerService
+        .getPublicProfile(photographerId)
+        .catch(() => null);
+      if (!profile) {
+        return {
+          items: [],
+          totalItemCount: 0,
+          totalPageCount: 0,
+          pageNumber: query.pageNumber,
+          pageSize: query.pageSize,
+        };
+      }
+      photographerId = profile.id;
+    }
+
     const { items, totalItemCount } = await this.eventService.getPublishedEventList({
       search: query.search,
       dateFrom: query.dateFrom,
       dateTo: query.dateTo,
-      photographerId: query.photographerId,
+      photographerId,
       pageNumber: query.pageNumber,
       pageSize: query.pageSize,
     });

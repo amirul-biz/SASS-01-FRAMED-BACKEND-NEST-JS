@@ -15,6 +15,9 @@ import { PhotoModule } from './photo/photo.module';
 import { OrderModule } from './order/order.module';
 import { SampleModule } from './sample/sample.module';
 import { UsersModule } from './users/users.module';
+import { MerchantPaymentPlatformModule } from './merchant-payment-platform/merchant-payment-platform.module';
+import { CashPaymentPlatformModule } from './merchant-payment-platform/cash-payment-platform/cash-payment-platform.module';
+import { ToyyibPayPaymentPlatformModule } from './merchant-payment-platform/toyyibpay-payment-platform/toyyibpay-payment-platform.module';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     ClientModule,
     AdminModule,
+    MerchantPaymentPlatformModule,
+    CashPaymentPlatformModule,
+    ToyyibPayPaymentPlatformModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -8,6 +8,14 @@ declare const module: any;
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
+
+  const encryptionKey = process.env.PAYMENT_ACCOUNT_ENCRYPTION_KEY;
+  if (!encryptionKey || !/^[0-9a-fA-F]{64}$/.test(encryptionKey)) {
+    throw new Error(
+      'Missing or invalid PAYMENT_ACCOUNT_ENCRYPTION_KEY — must be 64 hex characters',
+    );
+  }
+
   const app = await NestFactory.create(AppModule);
 
   if (module.hot) {

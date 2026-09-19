@@ -54,6 +54,9 @@ model UserPlatform {
   photographerProfile PhotographerProfile?
   adminProfile        AdminProfile?
 
+  paymentPlatformOptions MerchantPaymentPlatformOptions[]
+  recordedCashBills      MerchantCashPaymentPlatformBill[]
+
   @@unique([userId, role])
   @@index([userId], map: "idx_user_platforms_user")
   @@map("user_platforms")
@@ -283,4 +286,306 @@ model OrderItem {
 
   @@unique([orderId, photoId])
   @@map("order_items")
+}
+
+// ############################################################
+// PAYMENT CONFIG — merchant + system payment accounts, bills, commission
+// ############################################################
+
+enum PaymentProvider {
+  TOYYIBPAY
+  STRIPE
+  CASH
+
+  @@map("payment_provider")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("approval_status")
+}
+
+enum ToyyibPayChannel {
+  FPX
+  CARD
+  BOTH
+
+  @@map("toyyibpay_channel")
+}
+
+// ---------------- Merchant side (photographer's own account) ----------------
+
+model MerchantPaymentPlatformOptions {
+  id                       String          @id @default(uuid())
+  userPlatformId           String          @map("user_platform_id")
+  userPlatform             UserPlatform    @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
+  provider                 PaymentProvider
+  isDefaultPaymentPlatform Boolean         @default(false) @map("is_default_payment_platform")
+  approvalStatus           ApprovalStatus  @default(PENDING) @map("approval_status")
+  isImposeCommission       Boolean         @default(true) @map("is_impose_commission")
+  createdAt                DateTime        @default(now()) @map("created_at")
+  updatedAt                DateTime        @updatedAt @map("updated_at")
+
+  toyyibPayPaymentPlatformOption MerchantToyyibPayPaymentPlatformOption?
+  cashPaymentPlatformOption      MerchantCashPaymentPlatformOption?
+  commissionAssignment           CommissionAssignment?
+  paymentPlatformBills           MerchantPaymentPlatformBill[]
+
+  @@unique([userPlatformId, provider])
+  @@map("merchant_payment_platform_options")
+}
+
+model MerchantToyyibPayPaymentPlatformOption {
+  id                      String                         @id @default(uuid())
+  paymentPlatformOptionId String                         @unique @map("payment_platform_option_id")
+  paymentPlatformOption   MerchantPaymentPlatformOptions @relation(fields: [paymentPlatformOptionId], references: [id], onDelete: Cascade)
+  categoryCode            String                         @map("category_code")
+  secretKey               String                         @map("secret_key")
+  chargeFpxToCustomer     Boolean                        @default(false) @map("charge_fpx_to_customer")
+  chargeToPrepaid         Boolean                        @default(false) @map("charge_to_prepaid")
+  createdAt               DateTime                       @default(now()) @map("created_at")
+  updatedAt               DateTime                       @updatedAt @map("updated_at")
+
+  commissionSplit CommissionToyyibPayMerchantOption?
+
+  // paymentChannel / enableFpxB2b / enableDuitNowQr intentionally omitted — split payment
+  // only works for FPX, so every bill this option creates is forced FPX + fixed amount,
+  // platform-wide, no photographer override.
+
+  @@map("merchant_toyyibpay_payment_platform_options")
+}
+
+model MerchantCashPaymentPlatformOption {
+  id                      String                         @id @default(uuid())
+  paymentPlatformOptionId String                         @unique @map("payment_platform_option_id")
+  paymentPlatformOption   MerchantPaymentPlatformOptions @relation(fields: [paymentPlatformOptionId], references: [id], onDelete: Cascade)
+  createdAt               DateTime                       @default(now()) @map("created_at")
+  updatedAt               DateTime                       @updatedAt @map("updated_at")
+
+  @@map("merchant_cash_payment_platform_options")
+}
+
+model MerchantPaymentPlatformBill {
+  id                      String                         @id @default(uuid())
+  provider                PaymentProvider
+  paymentPlatformOptionId String                         @map("payment_platform_option_id")
+  paymentPlatformOption   MerchantPaymentPlatformOptions @relation(fields: [paymentPlatformOptionId], references: [id], onDelete: Restrict)
+  createdAt               DateTime                       @default(now()) @map("created_at")
+  updatedAt               DateTime                       @updatedAt @map("updated_at")
+
+  toyyibPayDetail  MerchantToyyibPayPaymentPlatformBill?
+  cashDetail       MerchantCashPaymentPlatformBill?
+  commissionCharge CommissionCharge?
+
+  @@map("merchant_payment_platform_bills")
+}
+
+model MerchantToyyibPayPaymentPlatformBill {
+  id              String                      @id @default(uuid())
+  billId          String                      @unique @map("bill_id")
+  bill            MerchantPaymentPlatformBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  billCode        String                      @unique @map("bill_code")
+  apiVersion      String                      @default("v1") @map("api_version")
+  requestPayload  Json                        @map("request_payload")
+  responsePayload Json?                       @map("response_payload")
+  createdAt       DateTime                    @default(now()) @map("created_at")
+
+  @@map("merchant_toyyibpay_payment_platform_bills")
+}
+
+model MerchantCashPaymentPlatformBill {
+  id                       String                      @id @default(uuid())
+  billId                   String                      @unique @map("bill_id")
+  bill                     MerchantPaymentPlatformBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  recordedByUserPlatformId String                      @map("recorded_by_user_platform_id")
+  recordedByUserPlatform   UserPlatform                @relation(fields: [recordedByUserPlatformId], references: [id], onDelete: Restrict)
+  notes                    String?
+  createdAt                DateTime                    @default(now()) @map("created_at")
+
+  @@map("merchant_cash_payment_platform_bills")
+}
+
+// ---------------- System side (admin's own account) ----------------
+
+model SystemPaymentPlatform {
+  id        String          @id @default(uuid())
+  provider  PaymentProvider
+  isDefault Boolean         @default(false) @map("is_default")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  toyyibPaySystemAccount SystemToyyibPayPaymentPlatformAccount?
+  cashSystemAccount      SystemCashPaymentPlatformAccount?
+
+  @@map("system_payment_platforms")
+}
+
+model SystemToyyibPayPaymentPlatformAccount {
+  id               String                @id @default(uuid())
+  systemPlatformId String                @unique @map("system_platform_id")
+  systemPlatform   SystemPaymentPlatform @relation(fields: [systemPlatformId], references: [id], onDelete: Cascade)
+  secretKey        String                @map("secret_key")
+  splitRecipientId String                @map("split_recipient_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  categories       SystemToyyibPayPaymentPlatformCategory[]
+  commissionSplits CommissionToyyibPayMerchantOption[]
+
+  @@map("system_toyyibpay_payment_platform_accounts")
+}
+
+model SystemCashPaymentPlatformAccount {
+  id               String                @id @default(uuid())
+  systemPlatformId String                @unique @map("system_platform_id")
+  systemPlatform   SystemPaymentPlatform @relation(fields: [systemPlatformId], references: [id], onDelete: Cascade)
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  // TBC: still missing the same audit-trail field UserCashPaymentPlatformBill has (who confirmed it) —
+  // no equivalent extension exists yet.
+
+  @@map("system_cash_payment_platform_accounts")
+}
+
+model SystemToyyibPayPaymentPlatformCategory {
+  id                        String                                @id @default(uuid())
+  systemPlatformAccountId   String                                @map("system_platform_account_id")
+  systemPlatformAccount     SystemToyyibPayPaymentPlatformAccount @relation(fields: [systemPlatformAccountId], references: [id], onDelete: Cascade)
+  categoryCode              String                                @unique @map("category_code")
+  name                      String
+  paymentChannel            ToyyibPayChannel                      @default(FPX) @map("payment_channel")
+  chargeFpxToCustomer       Boolean                               @default(false) @map("charge_fpx_to_customer")
+  chargeToPrepaid           Boolean                               @default(false) @map("charge_to_prepaid")
+  enableFpxB2b              Boolean                               @default(false) @map("enable_fpx_b2b")
+  chargeFpxB2bToOwner       Boolean                               @default(true) @map("charge_fpx_b2b_to_owner")
+  enableDuitNowQr           Boolean                               @default(false) @map("enable_duitnow_qr")
+  chargeDuitNowQrToCustomer Boolean?                              @map("charge_duitnow_qr_to_customer")
+  createdAt                 DateTime                              @default(now()) @map("created_at")
+  updatedAt                 DateTime                              @updatedAt @map("updated_at")
+
+  bills SystemToyyibPayPaymentPlatformBill[]
+
+  // Policy fields live HERE, not on the account, since one account can have many
+  // categories each with a different channel/fee policy (e.g. "Monthly Payment Merchant").
+  // No FK to any specific merchant — this table is system's own, unrelated to any photographer.
+
+  @@map("system_toyyibpay_payment_platform_categories")
+}
+
+// TBC — no FK for who this bill is issued to, no amount/status field yet. Confirmed NOT what
+// a future Payment.externalReference points at (that's UserPaymentPlatformBill's job).
+// This table's real purpose (fallback for failed/impossible ToyyibPay splits vs. a broader
+// invoicing mechanism) is unconfirmed — deferred alongside the system-invoices-photographer flow.
+model SystemPaymentPlatformBill {
+  id        String          @id @default(uuid())
+  provider  PaymentProvider
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  toyyibPayDetail SystemToyyibPayPaymentPlatformBill?
+
+  @@map("system_payment_platform_bills")
+}
+
+model SystemToyyibPayPaymentPlatformBill {
+  id              String                                 @id @default(uuid())
+  billId          String                                 @unique @map("bill_id")
+  bill            SystemPaymentPlatformBill              @relation(fields: [billId], references: [id], onDelete: Cascade)
+  categoryId      String                                 @map("category_id")
+  category        SystemToyyibPayPaymentPlatformCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  billCode        String                                 @unique @map("bill_code")
+  apiVersion      String                                 @default("v1") @map("api_version")
+  requestPayload  Json                                   @map("request_payload")
+  responsePayload Json?                                  @map("response_payload")
+  createdAt       DateTime                               @default(now()) @map("created_at")
+
+  @@map("system_toyyibpay_payment_platform_bills")
+}
+
+// ---------------- Commission config — admin-defined, bridges merchant + system ----------------
+
+model CommissionPlan {
+  id        String   @id @default(uuid())
+  name      String
+  isDefault Boolean  @default(false) @map("is_default")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  percentageCommissionId String?               @unique @map("percentage_commission_id")
+  percentageCommission   PercentageCommission? @relation(fields: [percentageCommissionId], references: [id], onDelete: SetNull)
+
+  amountCommissionId String?           @unique @map("amount_commission_id")
+  amountCommission   AmountCommission? @relation(fields: [amountCommissionId], references: [id], onDelete: SetNull)
+
+  assignments       CommissionAssignment[]
+  commissionCharges CommissionCharge[]
+
+  @@map("commission_plans")
+}
+
+model PercentageCommission {
+  id              String   @id @default(uuid())
+  name            String
+  percentageValue Decimal  @map("percentage_value") @db.Decimal(5, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  plan CommissionPlan?
+
+  @@map("percentage_commissions")
+}
+
+model AmountCommission {
+  id          String   @id @default(uuid())
+  name        String
+  amountValue Decimal  @map("amount_value") @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  plan CommissionPlan?
+
+  @@map("amount_commissions")
+}
+
+model CommissionAssignment {
+  id                      String                         @id @default(uuid())
+  commissionPlanId        String                         @map("commission_plan_id")
+  commissionPlan          CommissionPlan                 @relation(fields: [commissionPlanId], references: [id], onDelete: Restrict)
+  paymentPlatformOptionId String                         @unique @map("payment_platform_option_id")
+  paymentPlatformOption   MerchantPaymentPlatformOptions @relation(fields: [paymentPlatformOptionId], references: [id], onDelete: Cascade)
+  createdAt               DateTime                       @default(now()) @map("created_at")
+
+  toyyibPayMerchantOption CommissionToyyibPayMerchantOption?
+
+  @@map("commission_assignments")
+}
+
+model CommissionToyyibPayMerchantOption {
+  id                               String                                 @id @default(uuid())
+  commissionAssignmentId           String                                 @unique @map("commission_assignment_id")
+  commissionAssignment             CommissionAssignment                   @relation(fields: [commissionAssignmentId], references: [id], onDelete: Cascade)
+  toyyibPayPaymentPlatformOptionId String                                 @unique @map("toyyibpay_payment_platform_option_id")
+  toyyibPayPaymentPlatformOption   MerchantToyyibPayPaymentPlatformOption @relation(fields: [toyyibPayPaymentPlatformOptionId], references: [id], onDelete: Cascade)
+  systemToyyibPayPlatformAccountId String                                 @map("system_toyyibpay_platform_account_id")
+  systemToyyibPayPlatformAccount   SystemToyyibPayPaymentPlatformAccount  @relation(fields: [systemToyyibPayPlatformAccountId], references: [id], onDelete: Restrict)
+  createdAt                        DateTime                               @default(now()) @map("created_at")
+
+  @@map("commission_toyyibpay_merchant_options")
+}
+
+model CommissionCharge {
+  id                     String                      @id @default(uuid())
+  billId                 String                      @unique @map("bill_id")
+  bill                   MerchantPaymentPlatformBill @relation(fields: [billId], references: [id], onDelete: Restrict)
+  commissionPlanId       String?                     @map("commission_plan_id")
+  commissionPlan         CommissionPlan?             @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  percentageValueApplied Decimal?                    @map("percentage_value_applied") @db.Decimal(5, 2)
+  amountValueApplied     Decimal?                    @map("amount_value_applied") @db.Decimal(10, 2)
+  totalCommissionAmount  Decimal                     @map("total_commission_amount") @db.Decimal(10, 2)
+  createdAt              DateTime                    @default(now()) @map("created_at")
+
+  @@map("commission_charges")
 }

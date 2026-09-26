@@ -17,7 +17,9 @@ import { SampleModule } from './sample/sample.module';
 import { UsersModule } from './users/users.module';
 import { MerchantPaymentPlatformModule } from './merchant-payment-platform/merchant-payment-platform.module';
 import { CashPaymentPlatformModule } from './merchant-payment-platform/cash-payment-platform/cash-payment-platform.module';
-import { ToyyibPayPaymentPlatformModule } from './merchant-payment-platform/toyyibpay-payment-platform/toyyibpay-payment-platform.module';
+import { ToyyibPayPaymentConfigModule } from './merchant-payment-platform/toyyibpay-payment-platform/toyyibpay-payment-config/toyyibpay-payment-config.module';
+import { MerchantOrderPaymentModule } from './merchant-order-payment/merchant-order-payment.module';
+import { CashOrderPaymentModule } from './merchant-order-payment/cash-order-payment/cash-order-payment.module';
 
 @Module({
   imports: [
@@ -37,7 +39,9 @@ import { ToyyibPayPaymentPlatformModule } from './merchant-payment-platform/toyy
     AdminModule,
     MerchantPaymentPlatformModule,
     CashPaymentPlatformModule,
-    ToyyibPayPaymentPlatformModule,
+    ToyyibPayPaymentConfigModule,
+    MerchantOrderPaymentModule,
+    CashOrderPaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -5,7 +5,7 @@ import {
   IsBoolean,
   IsDate,
   IsEmail,
-  IsIn,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -17,6 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OrderStatus } from '../../generated/prisma/enums';
 
 export class AdminRegisterPhotographerDto {
   @ApiProperty({ example: 'jane.doe@example.com' })
@@ -163,10 +164,10 @@ export class AdminOrdersQueryDto {
   @IsOptional()
   eventId?: string;
 
-  @ApiPropertyOptional({ enum: ['PENDING_CONFIRMATION', 'CONFIRMED', 'CANCELLED'] })
-  @IsIn(['PENDING_CONFIRMATION', 'CONFIRMED', 'CANCELLED'])
+  @ApiPropertyOptional({ enum: OrderStatus })
+  @IsEnum(OrderStatus)
   @IsOptional()
-  status?: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED';
+  status?: OrderStatus;
 
   @ApiPropertyOptional({ example: 1 })
   @Type(() => Number)

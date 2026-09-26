@@ -40,10 +40,20 @@ steps:
   # Deploy to Cloud Run
   # Runtime env vars (see .env.example), passed via substitutions for now — TODO: move
   # DATABASE_URL / FIREBASE_PRIVATE_KEY / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY /
-  # CRON_SECRET to Secret Manager + `--set-secrets` once that's set up (these are live
-  # credentials; substitution values are plaintext in the trigger config and build log).
+  # CRON_SECRET / PAYMENT_ACCOUNT_ENCRYPTION_KEY to Secret Manager + `--set-secrets` once
+  # that's set up (these are live credentials; substitution values are plaintext in the
+  # trigger config and build log).
   # CLIENT_URL must be this environment's actual deployed frontend origin
   # (e.g. https://framed-frontend-xyz.run.app) — CORS is wide open if it's left unset.
+  # TOYYIBPAY_BASE_URL must be this environment's real ToyyibPay endpoint
+  # (https://toyyibpay.com in production) — the app code falls back to the SANDBOX
+  # (dev.toyyibpay.com) if this is left unset, so forgetting it here would silently create
+  # real bills against the sandbox instead of failing loudly.
+  # TOYYIBPAY_CALLBACK_URL must be this environment's own publicly reachable webhook relay
+  # URL — left empty, ToyyibPay never calls back and payments only ever resolve via the
+  # 15-minute sync sweep, never in real time.
+  # TOYYIBPAY_RETURN_URL is where ToyyibPay redirects the customer back to after paying —
+  # separate from CLIENT_URL (CORS only), since these can diverge in practice.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -54,7 +64,7 @@ steps:
       - '--region=$_DEPLOY_REGION'
       - '--platform=$_PLATFORM'
       - '--allow-unauthenticated'
-      - '--set-env-vars=DATABASE_URL=$_DATABASE_URL,FIREBASE_PROJECT_ID=$_FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL=$_FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY=$_FIREBASE_PRIVATE_KEY,R2_ACCESS_KEY_ID=$_R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY=$_R2_SECRET_ACCESS_KEY,R2_PRIVATE_BUCKET_NAME=$_R2_PRIVATE_BUCKET_NAME,R2_PUBLIC_BUCKET_NAME=$_R2_PUBLIC_BUCKET_NAME,R2_ENDPOINT=$_R2_ENDPOINT,R2_PRIVATE_BUCKET_URL=$_R2_PRIVATE_BUCKET_URL,R2_PUBLIC_BUCKET_URL=$_R2_PUBLIC_BUCKET_URL,CRON_SECRET=$_CRON_SECRET,CLIENT_URL=$_CLIENT_URL'
+      - '--set-env-vars=DATABASE_URL=$_DATABASE_URL,FIREBASE_PROJECT_ID=$_FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL=$_FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY=$_FIREBASE_PRIVATE_KEY,R2_ACCESS_KEY_ID=$_R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY=$_R2_SECRET_ACCESS_KEY,R2_PRIVATE_BUCKET_NAME=$_R2_PRIVATE_BUCKET_NAME,R2_PUBLIC_BUCKET_NAME=$_R2_PUBLIC_BUCKET_NAME,R2_ENDPOINT=$_R2_ENDPOINT,R2_PRIVATE_BUCKET_URL=$_R2_PRIVATE_BUCKET_URL,R2_PUBLIC_BUCKET_URL=$_R2_PUBLIC_BUCKET_URL,CRON_SECRET=$_CRON_SECRET,CLIENT_URL=$_CLIENT_URL,PAYMENT_ACCOUNT_ENCRYPTION_KEY=$_PAYMENT_ACCOUNT_ENCRYPTION_KEY,TOYYIBPAY_BASE_URL=$_TOYYIBPAY_BASE_URL,TOYYIBPAY_CALLBACK_URL=$_TOYYIBPAY_CALLBACK_URL,TOYYIBPAY_RETURN_URL=$_TOYYIBPAY_RETURN_URL'
     id: Deploy
 
 images:
@@ -86,6 +96,10 @@ substitutions:
   _R2_PUBLIC_BUCKET_URL: ''
   _CRON_SECRET: ''
   _CLIENT_URL: ''
+  _PAYMENT_ACCOUNT_ENCRYPTION_KEY: ''
+  _TOYYIBPAY_BASE_URL: ''
+  _TOYYIBPAY_CALLBACK_URL: ''
+  _TOYYIBPAY_RETURN_URL: ''
 
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET

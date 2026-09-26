@@ -5,43 +5,53 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { decryptSecret, encryptSecret } from '../../common/utils/crypto.util';
-import { PaymentProvider } from '../../../generated/prisma/enums';
-import type { AuthenticatedUser } from '../../types/express';
-import { MerchantPaymentPlatformService } from '../merchant-payment-platform.service';
+import {
+  decryptSecret,
+  encryptSecret,
+} from '../../../common/utils/crypto.util';
+import { PaymentProvider } from '../../../../generated/prisma/enums';
+import type { AuthenticatedUser } from '../../../types/express';
+import { MerchantPaymentPlatformService } from '../../merchant-payment-platform.service';
 import {
   ToyyibPayApiClient,
   ToyyibPayCredentialError,
 } from './toyyibpay-api.client';
-import { ToyyibPayPaymentPlatformRepository } from './toyyibpay-payment-platform.repository';
+import { ToyyibPayPaymentConfigRepository } from './toyyibpay-payment-config.repository';
 import {
-  CreateToyyibPayPaymentPlatformOptionDto,
-  ToyyibPayPaymentPlatformOptionResponseDto,
-  UpdateToyyibPayPaymentPlatformOptionDto,
-} from './toyyibpay-payment-platform.dto';
+  CreateToyyibPayPaymentConfigOptionDto,
+  ToyyibPayPaymentConfigOptionResponseDto,
+  UpdateToyyibPayPaymentConfigOptionDto,
+} from './toyyibpay-payment-config.dto';
 
-type ToyyibPayPaymentPlatformOption = Awaited<
+type ToyyibPayPaymentConfigOption = Awaited<
   ReturnType<
-    ToyyibPayPaymentPlatformRepository['createToyyibPayPaymentPlatformOption']
+    ToyyibPayPaymentConfigRepository['createToyyibPayPaymentConfigOption']
   >
 >;
 
-type ToyyibPayPaymentPlatformOptionCredentials = NonNullable<
-  ToyyibPayPaymentPlatformOption['toyyibPayPaymentPlatformOption']
+type ToyyibPayPaymentConfigOptionCredentials = NonNullable<
+  ToyyibPayPaymentConfigOption['toyyibPayPaymentPlatformOption']
 >;
 
+export interface ToyyibPayCredentials {
+  categoryCode: string;
+  secretKey: string;
+  chargeFpxToCustomer: boolean;
+  chargeToPrepaid: boolean;
+}
+
 @Injectable()
-export class ToyyibPayPaymentPlatformService {
+export class ToyyibPayPaymentConfigService {
   constructor(
-    private readonly toyyibPayPaymentPlatformRepository: ToyyibPayPaymentPlatformRepository,
+    private readonly toyyibPayPaymentConfigRepository: ToyyibPayPaymentConfigRepository,
     private readonly toyyibPayApiClient: ToyyibPayApiClient,
     private readonly merchantPaymentPlatformService: MerchantPaymentPlatformService,
   ) {}
 
-  async createToyyibPayPaymentPlatformOption(
+  async createToyyibPayPaymentConfigOption(
     user: AuthenticatedUser,
-    dto: CreateToyyibPayPaymentPlatformOptionDto,
-  ): Promise<ToyyibPayPaymentPlatformOptionResponseDto> {
+    dto: CreateToyyibPayPaymentConfigOptionDto,
+  ): Promise<ToyyibPayPaymentConfigOptionResponseDto> {
     const userPlatformId =
       this.merchantPaymentPlatformService.getCurrentUserPhotographerPlatformId(
         user,
@@ -63,7 +73,7 @@ export class ToyyibPayPaymentPlatformService {
     const approvalStatus =
       this.merchantPaymentPlatformService.getConfiguredApprovalStatus();
     const option =
-      await this.toyyibPayPaymentPlatformRepository.createToyyibPayPaymentPlatformOption(
+      await this.toyyibPayPaymentConfigRepository.createToyyibPayPaymentConfigOption(
         userPlatformId,
         dto.isDefaultPaymentPlatform ?? false,
         approvalStatus,
@@ -74,21 +84,21 @@ export class ToyyibPayPaymentPlatformService {
           chargeToPrepaid: dto.chargeToPrepaid,
         },
       );
-    return this.getMappedToyyibPayPaymentPlatformOptionResponseDto(option);
+    return this.getMappedToyyibPayPaymentConfigOptionResponseDto(option);
   }
 
-  async updateToyyibPayPaymentPlatformOption(
+  async updateToyyibPayPaymentConfigOption(
     user: AuthenticatedUser,
     optionId: string,
-    dto: UpdateToyyibPayPaymentPlatformOptionDto,
-  ): Promise<ToyyibPayPaymentPlatformOptionResponseDto> {
+    dto: UpdateToyyibPayPaymentConfigOptionDto,
+  ): Promise<ToyyibPayPaymentConfigOptionResponseDto> {
     const userPlatformId =
       this.merchantPaymentPlatformService.getCurrentUserPhotographerPlatformId(
         user,
       );
 
     const existingOption =
-      await this.toyyibPayPaymentPlatformRepository.getToyyibPayPaymentPlatformOptionById(
+      await this.toyyibPayPaymentConfigRepository.getToyyibPayPaymentConfigOptionById(
         optionId,
       );
     if (!existingOption?.toyyibPayPaymentPlatformOption) {
@@ -108,7 +118,7 @@ export class ToyyibPayPaymentPlatformService {
     );
 
     const updatedOption =
-      await this.toyyibPayPaymentPlatformRepository.updateToyyibPayPaymentPlatformOption(
+      await this.toyyibPayPaymentConfigRepository.updateToyyibPayPaymentConfigOption(
         optionId,
         userPlatformId,
         dto.isDefaultPaymentPlatform,
@@ -122,9 +132,32 @@ export class ToyyibPayPaymentPlatformService {
           chargeToPrepaid: dto.chargeToPrepaid,
         },
       );
-    return this.getMappedToyyibPayPaymentPlatformOptionResponseDto(
-      updatedOption,
-    );
+    return this.getMappedToyyibPayPaymentConfigOptionResponseDto(updatedOption);
+  }
+
+  // Used by toyyibpay-order-payment (pre-payment) to build a createBill call — the merchant's
+  // decrypted credentials live only here, so bill generation reuses this instead of decrypting
+  // a second time elsewhere.
+  async getToyyibPayCredentialsForOption(
+    paymentPlatformOptionId: string,
+  ): Promise<ToyyibPayCredentials> {
+    const option =
+      await this.toyyibPayPaymentConfigRepository.getToyyibPayPaymentConfigOptionById(
+        paymentPlatformOptionId,
+      );
+    if (!option?.toyyibPayPaymentPlatformOption) {
+      throw new NotFoundException(
+        'ToyyibPay payment platform option not found',
+      );
+    }
+
+    const credentials = option.toyyibPayPaymentPlatformOption;
+    return {
+      categoryCode: credentials.categoryCode,
+      secretKey: decryptSecret(credentials.secretKey),
+      chargeFpxToCustomer: credentials.chargeFpxToCustomer,
+      chargeToPrepaid: credentials.chargeToPrepaid,
+    };
   }
 
   private async verifyToyyibPayCredentials(
@@ -142,8 +175,8 @@ export class ToyyibPayPaymentPlatformService {
   }
 
   private async verifyToyyibPayCredentialsIfChanging(
-    dto: UpdateToyyibPayPaymentPlatformOptionDto,
-    existingCredentials: ToyyibPayPaymentPlatformOptionCredentials,
+    dto: UpdateToyyibPayPaymentConfigOptionDto,
+    existingCredentials: ToyyibPayPaymentConfigOptionCredentials,
   ): Promise<void> {
     const isCredentialFieldChanging =
       dto.categoryCode !== undefined || dto.secretKey !== undefined;
@@ -161,9 +194,9 @@ export class ToyyibPayPaymentPlatformService {
     );
   }
 
-  private getMappedToyyibPayPaymentPlatformOptionResponseDto(
-    option: ToyyibPayPaymentPlatformOption,
-  ): ToyyibPayPaymentPlatformOptionResponseDto {
+  private getMappedToyyibPayPaymentConfigOptionResponseDto(
+    option: ToyyibPayPaymentConfigOption,
+  ): ToyyibPayPaymentConfigOptionResponseDto {
     if (!option.toyyibPayPaymentPlatformOption) {
       throw new InternalServerErrorException(
         'ToyyibPay option row missing toyyibPayPaymentPlatformOption relation',

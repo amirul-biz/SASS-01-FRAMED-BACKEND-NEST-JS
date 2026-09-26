@@ -82,6 +82,29 @@ export class MerchantPaymentPlatformService {
     }
   }
 
+  getAuthorizedUserPlatformId(
+    user: AuthenticatedUser,
+    optionOwnerUserPlatformId: string,
+  ): string {
+    const isOwner = user.userPlatforms.some(
+      (platform) => platform.id === optionOwnerUserPlatformId,
+    );
+    if (isOwner) {
+      return optionOwnerUserPlatformId;
+    }
+
+    const adminPlatform = user.userPlatforms.find(
+      (platform) => platform.role === UserRole.ADMIN,
+    );
+    const isAdmin = adminPlatform !== undefined;
+    if (!isAdmin) {
+      throw new ForbiddenException(
+        'You do not have access to this payment platform option',
+      );
+    }
+    return adminPlatform.id;
+  }
+
   private isCurrentUserAdmin(user: AuthenticatedUser): boolean {
     return user.userPlatforms.some(
       (platform) => platform.role === UserRole.ADMIN,

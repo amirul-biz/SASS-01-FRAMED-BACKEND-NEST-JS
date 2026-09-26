@@ -238,7 +238,8 @@ model EventPricingBundle {
 
 enum OrderStatus {
   PENDING_CONFIRMATION
-  CONFIRMED
+  PROCESSING
+  DELIVERED
   CANCELLED
 
   @@map("order_status")
@@ -267,8 +268,14 @@ model Order {
   voucherName    String?     @map("voucher_name")
   status         OrderStatus @default(PENDING_CONFIRMATION)
   createdAt      DateTime    @default(now()) @map("created_at")
+  // Client-generated per checkout attempt, reused on retry — lets a retried POST /orders return
+  // the original order (and its original payment link) instead of creating a duplicate. Nullable
+  // for legacy rows created before this existed; every new order always sets one.
+  idempotencyKey String?     @unique @map("idempotency_key")
 
-  items OrderItem[]
+  items     OrderItem[]
+  payments  MerchantPayment[]
+  auditLogs MerchantTransactionAuditLog[]
 
   @@index([eventId], map: "idx_orders_event")
   @@index([voucherId], map: "idx_orders_voucher")
@@ -333,6 +340,7 @@ model MerchantPaymentPlatformOptions {
   cashPaymentPlatformOption      MerchantCashPaymentPlatformOption?
   commissionAssignment           CommissionAssignment?
   paymentPlatformBills           MerchantPaymentPlatformBill[]
+  payments                       MerchantPayment[]
 
   @@unique([userPlatformId, provider])
   @@map("merchant_payment_platform_options")
@@ -368,17 +376,73 @@ model MerchantCashPaymentPlatformOption {
   @@map("merchant_cash_payment_platform_options")
 }
 
+enum PaymentBillStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+
+  @@map("payment_bill_status")
+}
+
+enum TransitionSource {
+  WEBHOOK
+  MANUAL
+  SYSTEM
+  CUSTOMER
+
+  @@map("transition_source")
+}
+
+model MerchantPayment {
+  id                              String                         @id @default(uuid())
+  orderId                         String                         @map("order_id")
+  order                           Order                          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  merchantPaymentPlatformOptionId String                         @map("merchant_payment_platform_option_id")
+  merchantPaymentPlatformOption   MerchantPaymentPlatformOptions @relation(fields: [merchantPaymentPlatformOptionId], references: [id], onDelete: Restrict)
+  provider                        PaymentProvider
+  amount                          Decimal                        @db.Decimal(10, 2)
+  status                          PaymentBillStatus              @default(PENDING)
+  createdAt                       DateTime                       @default(now()) @map("created_at")
+  updatedAt                       DateTime                       @updatedAt @map("updated_at")
+
+  bill             MerchantPaymentPlatformBill?
+  auditLogs        MerchantTransactionAuditLog[]
+  commissionCharge CommissionCharge?
+
+  @@index([orderId, createdAt], map: "idx_merchant_payments_order")
+  @@map("merchant_payments")
+}
+
+model MerchantTransactionAuditLog {
+  id              String             @id @default(uuid())
+  paymentId       String             @map("payment_id")
+  payment         MerchantPayment    @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  orderId         String             @map("order_id")
+  order           Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  fromStatus      PaymentBillStatus? @map("from_status")
+  toStatus        PaymentBillStatus  @map("to_status")
+  fromOrderStatus OrderStatus?       @map("from_order_status")
+  toOrderStatus   OrderStatus        @map("to_order_status")
+  source          TransitionSource
+  createdAt       DateTime           @default(now()) @map("created_at")
+
+  @@unique([paymentId, toStatus])
+  @@map("merchant_transaction_audit_logs")
+}
+
 model MerchantPaymentPlatformBill {
   id                      String                         @id @default(uuid())
+  paymentId               String?                        @unique @map("payment_id")
+  payment                 MerchantPayment?               @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   provider                PaymentProvider
   paymentPlatformOptionId String                         @map("payment_platform_option_id")
   paymentPlatformOption   MerchantPaymentPlatformOptions @relation(fields: [paymentPlatformOptionId], references: [id], onDelete: Restrict)
   createdAt               DateTime                       @default(now()) @map("created_at")
   updatedAt               DateTime                       @updatedAt @map("updated_at")
 
-  toyyibPayDetail  MerchantToyyibPayPaymentPlatformBill?
-  cashDetail       MerchantCashPaymentPlatformBill?
-  commissionCharge CommissionCharge?
+  toyyibPayDetail MerchantToyyibPayPaymentPlatformBill?
+  cashDetail      MerchantCashPaymentPlatformBill?
 
   @@map("merchant_payment_platform_bills")
 }
@@ -392,6 +456,8 @@ model MerchantToyyibPayPaymentPlatformBill {
   requestPayload  Json                        @map("request_payload")
   responsePayload Json?                       @map("response_payload")
   createdAt       DateTime                    @default(now()) @map("created_at")
+  splitRecipientUsername String? @map("split_recipient_username")
+  splitCommission        Json?   @map("split_commission")
 
   @@map("merchant_toyyibpay_payment_platform_bills")
 }
@@ -508,19 +574,35 @@ model SystemToyyibPayPaymentPlatformBill {
 
 // ---------------- Commission config — admin-defined, bridges merchant + system ----------------
 
+enum CommissionType {
+  PERCENTAGE_PER_TRANSACTION
+  AMOUNT_PER_TRANSACTION
+  PERCENTAGE_PER_UNIT
+  AMOUNT_PER_UNIT
+
+  @@map("commission_type")
+}
+
 model CommissionPlan {
-  id        String   @id @default(uuid())
+  id        String         @id @default(uuid())
   name      String
-  isDefault Boolean  @default(false) @map("is_default")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  type      CommissionType
+  isDefault Boolean        @default(false) @map("is_default")
+  isActive  Boolean        @default(true) @map("is_active")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
 
-  percentageCommissionId String?               @unique @map("percentage_commission_id")
-  percentageCommission   PercentageCommission? @relation(fields: [percentageCommissionId], references: [id], onDelete: SetNull)
+  percentageCommissionPerTransactionId String?                             @unique @map("percentage_commission_per_transaction_id")
+  percentageCommissionPerTransaction   PercentageCommissionPerTransaction? @relation(fields: [percentageCommissionPerTransactionId], references: [id], onDelete: Restrict)
 
-  amountCommissionId String?           @unique @map("amount_commission_id")
-  amountCommission   AmountCommission? @relation(fields: [amountCommissionId], references: [id], onDelete: SetNull)
+  amountCommissionPerTransactionId String?                         @unique @map("amount_commission_per_transaction_id")
+  amountCommissionPerTransaction   AmountCommissionPerTransaction? @relation(fields: [amountCommissionPerTransactionId], references: [id], onDelete: Restrict)
+
+  percentageCommissionPerUnitId String?                      @unique @map("percentage_commission_per_unit_id")
+  percentageCommissionPerUnit   PercentageCommissionPerUnit? @relation(fields: [percentageCommissionPerUnitId], references: [id], onDelete: Restrict)
+
+  amountCommissionPerUnitId String?                  @unique @map("amount_commission_per_unit_id")
+  amountCommissionPerUnit   AmountCommissionPerUnit? @relation(fields: [amountCommissionPerUnitId], references: [id], onDelete: Restrict)
 
   assignments       CommissionAssignment[]
   commissionCharges CommissionCharge[]
@@ -528,7 +610,7 @@ model CommissionPlan {
   @@map("commission_plans")
 }
 
-model PercentageCommission {
+model PercentageCommissionPerTransaction {
   id              String   @id @default(uuid())
   name            String
   percentageValue Decimal  @map("percentage_value") @db.Decimal(5, 2)
@@ -536,10 +618,10 @@ model PercentageCommission {
 
   plan CommissionPlan?
 
-  @@map("percentage_commissions")
+  @@map("percentage_commission_per_transactions")
 }
 
-model AmountCommission {
+model AmountCommissionPerTransaction {
   id          String   @id @default(uuid())
   name        String
   amountValue Decimal  @map("amount_value") @db.Decimal(10, 2)
@@ -547,7 +629,29 @@ model AmountCommission {
 
   plan CommissionPlan?
 
-  @@map("amount_commissions")
+  @@map("amount_commission_per_transactions")
+}
+
+model PercentageCommissionPerUnit {
+  id              String   @id @default(uuid())
+  name            String
+  percentageValue Decimal  @map("percentage_value") @db.Decimal(5, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  plan CommissionPlan?
+
+  @@map("percentage_commission_per_units")
+}
+
+model AmountCommissionPerUnit {
+  id          String   @id @default(uuid())
+  name        String
+  amountValue Decimal  @map("amount_value") @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  plan CommissionPlan?
+
+  @@map("amount_commission_per_units")
 }
 
 model CommissionAssignment {
@@ -577,15 +681,74 @@ model CommissionToyyibPayMerchantOption {
 }
 
 model CommissionCharge {
-  id                     String                      @id @default(uuid())
-  billId                 String                      @unique @map("bill_id")
-  bill                   MerchantPaymentPlatformBill @relation(fields: [billId], references: [id], onDelete: Restrict)
-  commissionPlanId       String?                     @map("commission_plan_id")
-  commissionPlan         CommissionPlan?             @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
-  percentageValueApplied Decimal?                    @map("percentage_value_applied") @db.Decimal(5, 2)
-  amountValueApplied     Decimal?                    @map("amount_value_applied") @db.Decimal(10, 2)
-  totalCommissionAmount  Decimal                     @map("total_commission_amount") @db.Decimal(10, 2)
-  createdAt              DateTime                    @default(now()) @map("created_at")
+  id                    String          @id @default(uuid())
+  paymentId             String          @unique @map("payment_id")
+  payment               MerchantPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  commissionPlanId      String?         @map("commission_plan_id")
+  commissionPlan        CommissionPlan? @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  commissionType        CommissionType  @map("commission_type")
+  originalPaymentAmount Decimal         @map("original_payment_amount") @db.Decimal(10, 2)
+  commissionBaseAmount  Decimal         @map("commission_base_amount") @db.Decimal(10, 2)
+  commissionAmount      Decimal         @map("commission_amount") @db.Decimal(10, 2)
+  commissionImposedAt   DateTime        @default(now()) @map("commission_imposed_at")
+
+  percentagePerTransaction CommissionChargePercentagePerTransaction?
+  amountPerTransaction     CommissionChargeAmountPerTransaction?
+  percentagePerUnit        CommissionChargePercentagePerUnit?
+  amountPerUnit            CommissionChargeAmountPerUnit?
 
   @@map("commission_charges")
+}
+
+model CommissionChargePercentagePerTransaction {
+  id                    String           @id @default(uuid())
+  commissionChargeId    String           @unique @map("commission_charge_id")
+  commissionCharge      CommissionCharge @relation(fields: [commissionChargeId], references: [id], onDelete: Cascade)
+  percentageRateApplied Decimal          @map("percentage_rate_applied") @db.Decimal(5, 2)
+  transactionAmount     Decimal          @map("transaction_amount") @db.Decimal(10, 2)
+  commissionAmount      Decimal          @map("commission_amount") @db.Decimal(10, 2)
+  createdAt             DateTime         @default(now()) @map("created_at")
+
+  @@map("commission_charge_percentage_per_transactions")
+}
+
+model CommissionChargeAmountPerTransaction {
+  id                 String           @id @default(uuid())
+  commissionChargeId String           @unique @map("commission_charge_id")
+  commissionCharge   CommissionCharge @relation(fields: [commissionChargeId], references: [id], onDelete: Cascade)
+  flatAmountApplied  Decimal          @map("flat_amount_applied") @db.Decimal(10, 2)
+  transactionAmount  Decimal          @map("transaction_amount") @db.Decimal(10, 2)
+  commissionAmount   Decimal          @map("commission_amount") @db.Decimal(10, 2)
+  createdAt          DateTime         @default(now()) @map("created_at")
+
+  @@map("commission_charge_amount_per_transactions")
+}
+
+model CommissionChargePercentagePerUnit {
+  id                       String           @id @default(uuid())
+  commissionChargeId       String           @unique @map("commission_charge_id")
+  commissionCharge         CommissionCharge @relation(fields: [commissionChargeId], references: [id], onDelete: Cascade)
+  unitCount                Int              @map("unit_count")
+  totalUnitCost            Decimal          @map("total_unit_cost") @db.Decimal(10, 2)
+  averageCostPerUnit       Decimal          @map("average_cost_per_unit") @db.Decimal(10, 2)
+  percentageRateApplied    Decimal          @map("percentage_rate_applied") @db.Decimal(5, 2)
+  averageCommissionPerUnit Decimal          @map("average_commission_per_unit") @db.Decimal(10, 2)
+  commissionAmount         Decimal          @map("commission_amount") @db.Decimal(10, 2)
+  createdAt                DateTime         @default(now()) @map("created_at")
+
+  @@map("commission_charge_percentage_per_units")
+}
+
+model CommissionChargeAmountPerUnit {
+  id                       String           @id @default(uuid())
+  commissionChargeId       String           @unique @map("commission_charge_id")
+  commissionCharge         CommissionCharge @relation(fields: [commissionChargeId], references: [id], onDelete: Cascade)
+  unitCount                Int              @map("unit_count")
+  totalUnitCost            Decimal          @map("total_unit_cost") @db.Decimal(10, 2)
+  averageCostPerUnit       Decimal          @map("average_cost_per_unit") @db.Decimal(10, 2)
+  commissionPerUnitApplied Decimal          @map("commission_per_unit_applied") @db.Decimal(10, 2)
+  commissionAmount         Decimal          @map("commission_amount") @db.Decimal(10, 2)
+  createdAt                DateTime         @default(now()) @map("created_at")
+
+  @@map("commission_charge_amount_per_units")
 }

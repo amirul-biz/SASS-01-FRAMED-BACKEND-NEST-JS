@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Query, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -8,6 +18,7 @@ import { UserRole } from '../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../types/express';
 import {
   CreateOrderDto,
+  OrderHistoryDto,
   OrderListQueryDto,
   OrderResponseDto,
   PaginatedOrderListResponseDto,
@@ -23,8 +34,8 @@ export class OrderController {
   // Rider-facing and unauthenticated — no rider accounts exist in this app, matching the public
   // surface already exposed by ClientController.
   @Post()
-  async create(@Body() dto: CreateOrderDto): Promise<OrderResponseDto> {
-    return await this.orderService.create(dto);
+  async createOrder(@Body() dto: CreateOrderDto): Promise<OrderResponseDto> {
+    return await this.orderService.createOrder(dto);
   }
 
   // Photographer-facing — lists orders across the caller's own events only.
@@ -37,5 +48,16 @@ export class OrderController {
     @Query() query: OrderListQueryDto,
   ): Promise<PaginatedOrderListResponseDto> {
     return await this.orderService.listForPhotographer(user, query);
+  }
+
+  @Get(':orderId/history')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  async getOrderHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+  ): Promise<OrderHistoryDto> {
+    return await this.orderService.getHistory(user, orderId);
   }
 }

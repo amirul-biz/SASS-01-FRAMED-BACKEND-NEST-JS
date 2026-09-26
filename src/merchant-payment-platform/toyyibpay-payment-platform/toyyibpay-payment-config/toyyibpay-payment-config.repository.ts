@@ -1,22 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../config/database/prisma.service';
-import type { Prisma } from '../../../generated/prisma/client';
+import { PrismaService } from '../../../config/database/prisma.service';
+import type { Prisma } from '../../../../generated/prisma/client';
 import {
   ApprovalStatus,
   PaymentProvider,
-} from '../../../generated/prisma/enums';
-import { MerchantPaymentPlatformRepository } from '../merchant-payment-platform.repository';
+} from '../../../../generated/prisma/enums';
+import { MerchantPaymentPlatformRepository } from '../../merchant-payment-platform.repository';
 
 const TOYYIBPAY_OPTION_INCLUDE = {
   toyyibPayPaymentPlatformOption: true,
 } as const;
 
-type ToyyibPayPaymentPlatformOptionPayload =
+type ToyyibPayPaymentConfigOptionPayload =
   Prisma.MerchantPaymentPlatformOptionsGetPayload<{
     include: typeof TOYYIBPAY_OPTION_INCLUDE;
   }>;
 
-interface ToyyibPayOptionFields {
+interface ToyyibPayPaymentConfigOptionFields {
   categoryCode: string;
   encryptedSecretKey: string;
   chargeFpxToCustomer?: boolean;
@@ -24,27 +24,27 @@ interface ToyyibPayOptionFields {
 }
 
 @Injectable()
-export class ToyyibPayPaymentPlatformRepository {
+export class ToyyibPayPaymentConfigRepository {
   constructor(
     private readonly prisma: PrismaService,
     private readonly merchantPaymentPlatformRepository: MerchantPaymentPlatformRepository,
   ) {}
 
-  async getToyyibPayPaymentPlatformOptionById(
+  async getToyyibPayPaymentConfigOptionById(
     id: string,
-  ): Promise<ToyyibPayPaymentPlatformOptionPayload | null> {
+  ): Promise<ToyyibPayPaymentConfigOptionPayload | null> {
     return await this.prisma.merchantPaymentPlatformOptions.findFirst({
       where: { id, provider: PaymentProvider.TOYYIBPAY },
       include: TOYYIBPAY_OPTION_INCLUDE,
     });
   }
 
-  async createToyyibPayPaymentPlatformOption(
+  async createToyyibPayPaymentConfigOption(
     userPlatformId: string,
     isDefaultPaymentPlatform: boolean,
     approvalStatus: ApprovalStatus,
-    fields: ToyyibPayOptionFields,
-  ): Promise<ToyyibPayPaymentPlatformOptionPayload> {
+    fields: ToyyibPayPaymentConfigOptionFields,
+  ): Promise<ToyyibPayPaymentConfigOptionPayload> {
     return await this.prisma.$transaction(async (tx) => {
       if (isDefaultPaymentPlatform) {
         await this.merchantPaymentPlatformRepository.setOtherPaymentPlatformOptionsAsNotDefault(
@@ -73,12 +73,12 @@ export class ToyyibPayPaymentPlatformRepository {
     });
   }
 
-  async updateToyyibPayPaymentPlatformOption(
+  async updateToyyibPayPaymentConfigOption(
     id: string,
     userPlatformId: string,
     isDefaultPaymentPlatform: boolean | undefined,
-    fields: Partial<ToyyibPayOptionFields>,
-  ): Promise<ToyyibPayPaymentPlatformOptionPayload> {
+    fields: Partial<ToyyibPayPaymentConfigOptionFields>,
+  ): Promise<ToyyibPayPaymentConfigOptionPayload> {
     return await this.prisma.$transaction(async (tx) => {
       if (isDefaultPaymentPlatform) {
         await this.merchantPaymentPlatformRepository.setOtherPaymentPlatformOptionsAsNotDefault(
@@ -104,7 +104,7 @@ export class ToyyibPayPaymentPlatformRepository {
   }
 
   private getToyyibPayOptionUpdateData(
-    fields: Partial<ToyyibPayOptionFields>,
+    fields: Partial<ToyyibPayPaymentConfigOptionFields>,
   ): Prisma.MerchantToyyibPayPaymentPlatformOptionUpdateInput {
     const hasCategoryCode = fields.categoryCode !== undefined;
     const hasEncryptedSecretKey = fields.encryptedSecretKey !== undefined;

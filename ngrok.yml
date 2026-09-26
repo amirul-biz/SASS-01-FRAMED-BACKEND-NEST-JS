@@ -1,0 +1,7 @@
+version: 3
+endpoints:
+  - name: dev-webhook
+    url: https://resummonable-pearl-unfinanced.ngrok-free.dev
+    pooling_enabled: true # a persistent Cloud Endpoint already owns this domain; pool instead of colliding
+    upstream:
+      url: 3001 # NestJS local dev port (process.env.PORT ?? 3001 in src/main.ts)

@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import type { OrderStatus } from '../../generated/prisma/enums';
 import { PrismaService } from '../config/database/prisma.service';
 import { FirebaseService } from '../config/firebase/firebase.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
@@ -261,7 +262,7 @@ export class AdminService {
 
   async listOrders(query: {
     eventId?: string;
-    status?: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED';
+    status?: OrderStatus;
     pageNumber: number;
     pageSize: number;
   }): Promise<AdminPaginatedOrdersDto> {

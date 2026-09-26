@@ -1,8 +1,8 @@
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MerchantPaymentPlatformOptionDto } from '../merchant-payment-platform.dto';
+import { MerchantPaymentPlatformOptionDto } from '../../merchant-payment-platform.dto';
 
-export class CreateToyyibPayPaymentPlatformOptionDto {
+export class CreateToyyibPayPaymentConfigOptionDto {
   @ApiProperty({ example: 'gcbhict9' })
   @IsString()
   @IsNotEmpty({ message: 'categoryCode is required' })
@@ -29,7 +29,7 @@ export class CreateToyyibPayPaymentPlatformOptionDto {
   isDefaultPaymentPlatform?: boolean;
 }
 
-export class UpdateToyyibPayPaymentPlatformOptionDto {
+export class UpdateToyyibPayPaymentConfigOptionDto {
   @ApiPropertyOptional({ example: 'gcbhict9' })
   @IsString()
   @IsOptional()
@@ -56,7 +56,7 @@ export class UpdateToyyibPayPaymentPlatformOptionDto {
   isDefaultPaymentPlatform?: boolean;
 }
 
-export class ToyyibPayPaymentPlatformOptionResponseDto extends MerchantPaymentPlatformOptionDto {
+export class ToyyibPayPaymentConfigOptionResponseDto extends MerchantPaymentPlatformOptionDto {
   @ApiProperty() @IsString() categoryCode!: string;
   @ApiProperty() @IsBoolean() chargeFpxToCustomer!: boolean;
   @ApiProperty() @IsBoolean() chargeToPrepaid!: boolean;

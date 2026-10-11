@@ -267,6 +267,18 @@ export class OrderListQueryDto {
   @IsEnum(OrderPaymentTracking)
   @IsOptional()
   paymentTracking?: OrderPaymentTracking;
+
+  // Matches a prefix of the order id — the same 8-char reference already shown in the UI
+  // (getOrderReference), case-insensitive.
+  @ApiPropertyOptional({ example: '2C95A424' })
+  @IsString()
+  @IsOptional()
+  orderIdSearch?: string;
+
+  @ApiPropertyOptional({ example: 'rider@example.com' })
+  @IsString()
+  @IsOptional()
+  emailSearch?: string;
 }
 
 export class PhotographerOrderDto extends OrderResponseDto {

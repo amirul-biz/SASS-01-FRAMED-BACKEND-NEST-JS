@@ -47,20 +47,33 @@ export class AdminService {
     } catch (error) {
       // registerPhotographer wraps all failures (e.g. duplicate email) in a generic Error to
       // undo the Firebase user — surface the cause to the admin UI as a 400 instead of a 500.
-      throw new BadRequestException((error as Error)?.message ?? 'Registration failed');
+      throw new BadRequestException(
+        (error as Error)?.message ?? 'Registration failed',
+      );
     }
   }
 
-  async listPhotographers(
-    query: { search?: string },
-  ): Promise<AdminPaginatedPhotographersDto> {
+  async listPhotographers(query: {
+    search?: string;
+  }): Promise<AdminPaginatedPhotographersDto> {
     const [profiles, firebaseUsers] = await Promise.all([
       this.prisma.photographerProfile.findMany({
         where: {
           ...(query.search && {
             OR: [
-              { name: { contains: query.search, mode: 'insensitive' as const } },
-              { userPlatform: { user: { email: { contains: query.search, mode: 'insensitive' as const } } } },
+              {
+                name: { contains: query.search, mode: 'insensitive' as const },
+              },
+              {
+                userPlatform: {
+                  user: {
+                    email: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                },
+              },
             ],
           }),
         },
@@ -71,7 +84,9 @@ export class AdminService {
           contactNo: true,
           profileImageKey: true,
           createdAt: true,
-          userPlatform: { select: { user: { select: { email: true, firebaseId: true } } } },
+          userPlatform: {
+            select: { user: { select: { email: true, firebaseId: true } } },
+          },
           _count: { select: { events: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -79,7 +94,9 @@ export class AdminService {
       this.safeListFirebaseUsers(),
     ]);
 
-    const disabledByUid = new Map(firebaseUsers.map((user) => [user.uid, user.disabled]));
+    const disabledByUid = new Map(
+      firebaseUsers.map((user) => [user.uid, user.disabled]),
+    );
 
     const items: AdminPhotographerDto[] = profiles.map((profile) => ({
       id: profile.id,
@@ -100,17 +117,25 @@ export class AdminService {
     return { items, totalItemCount: items.length };
   }
 
-  async setPhotographerStatus(profileId: string, isActive: boolean): Promise<void> {
+  async setPhotographerStatus(
+    profileId: string,
+    isActive: boolean,
+  ): Promise<void> {
     const profile = await this.prisma.photographerProfile.findUnique({
       where: { id: profileId },
-      select: { userPlatform: { select: { user: { select: { firebaseId: true } } } } },
+      select: {
+        userPlatform: { select: { user: { select: { firebaseId: true } } } },
+      },
     });
 
     if (!profile) {
       throw new NotFoundException('Photographer not found');
     }
 
-    await this.firebaseService.setUserDisabled(profile.userPlatform.user.firebaseId, !isActive);
+    await this.firebaseService.setUserDisabled(
+      profile.userPlatform.user.firebaseId,
+      !isActive,
+    );
   }
 
   async getStats(): Promise<AdminStatsDto> {
@@ -132,12 +157,19 @@ export class AdminService {
       firebaseUsers,
       profilesWithPlatform,
     ] = await Promise.all([
-      this.prisma.photo.count({ where: { status: 'UPLOADED', deletedAt: null } }),
-      this.prisma.event.count({ where: { isPublished: true, deletedAt: null } }),
+      this.prisma.photo.count({
+        where: { status: 'UPLOADED', deletedAt: null },
+      }),
+      this.prisma.event.count({
+        where: { isPublished: true, deletedAt: null },
+      }),
       this.prisma.event.count({ where: { deletedAt: null } }),
       this.prisma.photographerProfile.count(),
       this.prisma.order.count({ where: { status: { not: 'CANCELLED' } } }),
-      this.prisma.order.aggregate({ _sum: { total: true }, where: { status: { not: 'CANCELLED' } } }),
+      this.prisma.order.aggregate({
+        _sum: { total: true },
+        where: { status: { not: 'CANCELLED' } },
+      }),
       this.countDaily(
         `SELECT date_trunc('day', uploaded_at)::date AS day, COUNT(*)::int AS count
          FROM photos
@@ -164,18 +196,24 @@ export class AdminService {
       ),
       this.safeListFirebaseUsers(),
       this.prisma.photographerProfile.findMany({
-        select: { userPlatform: { select: { user: { select: { firebaseId: true } } } } },
+        select: {
+          userPlatform: { select: { user: { select: { firebaseId: true } } } },
+        },
       }),
     ]);
 
-    const disabledUids = new Set(firebaseUsers.filter((user) => user.disabled).map((user) => user.uid));
+    const disabledUids = new Set(
+      firebaseUsers.filter((user) => user.disabled).map((user) => user.uid),
+    );
     const activePhotographers = profilesWithPlatform.filter(
       (profile) => !disabledUids.has(profile.userPlatform.user.firebaseId),
     ).length;
 
     const photoMap = new Map(dailyPhotos.map((row) => [row.day, row.count]));
     const eventMap = new Map(dailyEvents.map((row) => [row.day, row.count]));
-    const photographerMap = new Map(dailyPhotographers.map((row) => [row.day, row.count]));
+    const photographerMap = new Map(
+      dailyPhotographers.map((row) => [row.day, row.count]),
+    );
     const orderMap = new Map(dailyOrders.map((row) => [row.day, row.count]));
 
     const daily: AdminDailyStatDto[] = [];
@@ -213,7 +251,9 @@ export class AdminService {
   }): Promise<AdminPaginatedEventsDto> {
     const where = {
       deletedAt: null,
-      ...(query.search && { title: { contains: query.search, mode: 'insensitive' as const } }),
+      ...(query.search && {
+        title: { contains: query.search, mode: 'insensitive' as const },
+      }),
       ...(query.photographerId && { photographerId: query.photographerId }),
     };
 
@@ -321,8 +361,11 @@ export class AdminService {
 
   // $queryRaw with a computed ISO string is safe (no user input interpolated); rows return
   // day as a Date object, so it's normalised to a yyyy-mm-dd key.
-  private async countDaily(sql: string): Promise<{ day: string; count: number }[]> {
-    const rows = await this.prisma.$queryRawUnsafe<{ day: Date; count: number }[]>(sql);
+  private async countDaily(
+    sql: string,
+  ): Promise<{ day: string; count: number }[]> {
+    const rows =
+      await this.prisma.$queryRawUnsafe<{ day: Date; count: number }[]>(sql);
     return rows.map((row) => ({
       day: new Date(row.day).toISOString().slice(0, 10),
       count: Number(row.count),
@@ -335,7 +378,9 @@ export class AdminService {
     } catch (error) {
       // Firebase being unavailable (e.g. missing credentials in local dev) shouldn't take the
       // whole admin panel down — accounts then default to active.
-      this.logger.warn(`Failed to list Firebase users: ${(error as Error).message}`);
+      this.logger.warn(
+        `Failed to list Firebase users: ${(error as Error).message}`,
+      );
       return [];
     }
   }

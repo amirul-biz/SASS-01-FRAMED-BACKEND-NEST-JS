@@ -11,7 +11,9 @@ export class VouchersRepository {
       where: { photographerId },
       orderBy: { createdAt: 'asc' },
     });
-    return Promise.all(vouchers.map((voucher) => this.withBundlesUsingCount(voucher)));
+    return Promise.all(
+      vouchers.map((voucher) => this.withBundlesUsingCount(voucher)),
+    );
   }
 
   async findById(id: string) {

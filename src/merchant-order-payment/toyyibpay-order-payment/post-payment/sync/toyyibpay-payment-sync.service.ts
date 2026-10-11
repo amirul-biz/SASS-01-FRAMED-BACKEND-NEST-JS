@@ -13,6 +13,7 @@ import {
   TransitionSource,
 } from '../../../../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../../../../types/express';
+import { OrderDeliveryRepository } from '../../../core/order-delivery/order-delivery.repository';
 import { PaymentTransitionRepository } from '../../../core/payment-transition/payment-transition.repository';
 import { ToyyibPayPrePaymentRepository } from '../../pre-payment/toyyibpay-pre-payment.repository';
 import { ToyyibPayPaymentFinalizationService } from '../finalization/toyyibpay-payment-finalization.service';
@@ -26,6 +27,11 @@ export interface SyncPaymentResult {
 
 export interface ConfirmToyyibPayReturnResult {
   paymentStatus: PaymentBillStatus;
+  orderId: string;
+  // For the return-URL page's WhatsApp fallback — null when the photographer has no contact
+  // number on file either way.
+  photographerContactNo: string | null;
+  photographerPhone: string | null;
 }
 
 export interface SyncAllStalePaymentsSummary {
@@ -45,6 +51,7 @@ export class ToyyibPayPaymentSyncService {
     private readonly toyyibPayApiClient: ToyyibPayApiClient,
     private readonly toyyibPayPaymentFinalizationService: ToyyibPayPaymentFinalizationService,
     private readonly toyyibPayPaymentSyncRepository: ToyyibPayPaymentSyncRepository,
+    private readonly orderDeliveryRepository: OrderDeliveryRepository,
   ) {}
 
   async resyncAsPhotographer(
@@ -75,9 +82,16 @@ export class ToyyibPayPaymentSyncService {
   // Returns the payment's actual current status rather than syncPayment's own { synced } result —
   // the page rendering off this needs to know what the payment really is (e.g. already PAID via a
   // webhook that beat the customer to it), not just whether this particular call changed anything.
+  //
+  // resendEmail is set only by the page's explicit "didn't receive it?" retry click — when the
+  // payment is already PAID, syncPayment above is a guaranteed no-op (nothing left to sync), so
+  // without this the retry button would do nothing at all. Deliberately bypasses deliverOrder's
+  // "only once" guard via resendDeliveryEmail — a duplicate email here is the customer explicitly
+  // asking for one, not an accident, so there's nothing to guard against.
   async confirmReturnAsCustomer(
     paymentId: string,
     billCode: string,
+    resendEmail: boolean,
   ): Promise<ConfirmToyyibPayReturnResult> {
     const storedBillCode =
       await this.toyyibPayPrePaymentRepository.getBillCodeByPaymentId(
@@ -98,7 +112,23 @@ export class ToyyibPayPaymentSyncService {
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
-    return { paymentStatus: payment.status };
+
+    const isPaid = payment.status === PaymentBillStatus.PAID;
+    if (resendEmail && isPaid) {
+      await this.orderDeliveryRepository.resendDeliveryEmail(
+        payment.orderId,
+        payment.order.email,
+        Number(payment.amount),
+      );
+    }
+
+    return {
+      paymentStatus: payment.status,
+      orderId: payment.orderId,
+      photographerContactNo:
+        payment.order.event.photographerProfile?.contactNo ?? null,
+      photographerPhone: payment.order.event.photographerProfile?.phone ?? null,
+    };
   }
 
   async syncPayment(

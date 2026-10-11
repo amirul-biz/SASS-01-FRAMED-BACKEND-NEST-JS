@@ -38,6 +38,14 @@ export class OrderController {
     return await this.orderService.createOrder(dto);
   }
 
+  // Public, unauthenticated — see getReceiptForCustomer for why that's safe.
+  @Get(':orderId/receipt')
+  async getOrderReceipt(
+    @Param('orderId') orderId: string,
+  ): Promise<OrderResponseDto> {
+    return await this.orderService.getReceiptForCustomer(orderId);
+  }
+
   // Photographer-facing — lists orders across the caller's own events only.
   @Get()
   @ApiBearerAuth()
@@ -59,5 +67,18 @@ export class OrderController {
     @Param('orderId') orderId: string,
   ): Promise<OrderHistoryDto> {
     return await this.orderService.getHistory(user, orderId);
+  }
+
+  // Photographer-facing — see resendDeliveryEmail for why the regular sync button can't do this.
+  @Post(':orderId/resend-email')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  async resendDeliveryEmail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+  ): Promise<{ resent: true }> {
+    await this.orderService.resendDeliveryEmail(user, orderId);
+    return { resent: true };
   }
 }

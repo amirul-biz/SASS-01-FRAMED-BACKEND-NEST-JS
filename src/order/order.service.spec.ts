@@ -379,3 +379,193 @@ describe('OrderService.listForPhotographer', () => {
     );
   });
 });
+
+describe('OrderService.getReceiptForCustomer', () => {
+  const baseOrder: any = {
+    id: 'order-1',
+    eventId: 'event-1',
+    email: 'rider@example.com',
+    countryCode: 'MALAYSIA',
+    phone: '123',
+    subtotal: 30,
+    discountAmount: 0,
+    total: 30,
+    priceBreakdown: {},
+    voucherId: null,
+    voucherName: null,
+    status: 'PROCESSING',
+    createdAt: new Date(),
+    items: [],
+    payments: [],
+  };
+
+  let orderRepository: { getOrderById: jest.Mock };
+  let orderHistoryService: { getMappedOrderPaymentDto: jest.Mock };
+  let service: OrderService;
+
+  beforeEach(() => {
+    orderRepository = { getOrderById: jest.fn().mockResolvedValue(baseOrder) };
+    orderHistoryService = {
+      getMappedOrderPaymentDto: jest.fn().mockReturnValue(null),
+    };
+    service = new OrderService(
+      orderRepository as any,
+      {} as any,
+      {} as any,
+      { buildPublicUrl: jest.fn() } as any,
+      {} as any,
+      orderHistoryService as any,
+      {} as any,
+      {} as any,
+    );
+  });
+
+  it('throws 404 when no order matches the id', async () => {
+    orderRepository.getOrderById.mockResolvedValue(null);
+
+    await expect(service.getReceiptForCustomer('missing')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('throws 400 when the order has never been paid (still pending confirmation)', async () => {
+    orderRepository.getOrderById.mockResolvedValue({
+      ...baseOrder,
+      status: 'PENDING_CONFIRMATION',
+    });
+
+    await expect(service.getReceiptForCustomer('order-1')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('throws 400 when the order was cancelled (payment never succeeded)', async () => {
+    orderRepository.getOrderById.mockResolvedValue({
+      ...baseOrder,
+      status: 'CANCELLED',
+    });
+
+    await expect(service.getReceiptForCustomer('order-1')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('returns the receipt for an order that is PROCESSING (paid, not yet delivered)', async () => {
+    await expect(service.getReceiptForCustomer('order-1')).resolves.toEqual(
+      expect.objectContaining({ id: 'order-1' }),
+    );
+  });
+
+  it('returns the receipt for an order that is DELIVERED', async () => {
+    orderRepository.getOrderById.mockResolvedValue({
+      ...baseOrder,
+      status: 'DELIVERED',
+    });
+
+    await expect(service.getReceiptForCustomer('order-1')).resolves.toEqual(
+      expect.objectContaining({ id: 'order-1' }),
+    );
+  });
+});
+
+describe('OrderService.resendDeliveryEmail', () => {
+  const deliveredOrder: any = {
+    id: 'order-1',
+    email: 'rider@example.com',
+    status: 'DELIVERED',
+    payments: [{ provider: 'TOYYIBPAY', amount: '30.00' }],
+  };
+
+  let orderRepository: {
+    getOrderOwnershipById: jest.Mock;
+    getOrderById: jest.Mock;
+  };
+  let orderDeliveryRepository: { resendDeliveryEmail: jest.Mock };
+  let photographerService: { getOwnPhotographerProfileId: jest.Mock };
+  let service: OrderService;
+
+  beforeEach(() => {
+    orderRepository = {
+      getOrderOwnershipById: jest.fn().mockResolvedValue({
+        id: 'order-1',
+        createdAt: new Date(),
+        event: { photographerId: 'photographer-1' },
+      }),
+      getOrderById: jest.fn().mockResolvedValue(deliveredOrder),
+    };
+    orderDeliveryRepository = {
+      resendDeliveryEmail: jest.fn().mockResolvedValue(undefined),
+    };
+    photographerService = {
+      getOwnPhotographerProfileId: jest
+        .fn()
+        .mockResolvedValue('photographer-1'),
+    };
+    service = new OrderService(
+      orderRepository as any,
+      {} as any,
+      photographerService as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      orderDeliveryRepository as any,
+    );
+  });
+
+  it('throws 404 when no order matches the id', async () => {
+    orderRepository.getOrderOwnershipById.mockResolvedValue(null);
+
+    await expect(
+      service.resendDeliveryEmail({} as any, 'missing'),
+    ).rejects.toThrow(NotFoundException);
+    expect(orderDeliveryRepository.resendDeliveryEmail).not.toHaveBeenCalled();
+  });
+
+  it("throws 403 for another photographer's order", async () => {
+    orderRepository.getOrderOwnershipById.mockResolvedValue({
+      id: 'order-1',
+      createdAt: new Date(),
+      event: { photographerId: 'someone-else' },
+    });
+
+    await expect(
+      service.resendDeliveryEmail({} as any, 'order-1'),
+    ).rejects.toThrow(ForbiddenException);
+    expect(orderDeliveryRepository.resendDeliveryEmail).not.toHaveBeenCalled();
+  });
+
+  it('throws 400 when the order is not DELIVERED', async () => {
+    orderRepository.getOrderById.mockResolvedValue({
+      ...deliveredOrder,
+      status: 'PROCESSING',
+    });
+
+    await expect(
+      service.resendDeliveryEmail({} as any, 'order-1'),
+    ).rejects.toThrow(BadRequestException);
+    expect(orderDeliveryRepository.resendDeliveryEmail).not.toHaveBeenCalled();
+  });
+
+  it('throws 400 when the order is not a ToyyibPay payment (e.g. cash)', async () => {
+    orderRepository.getOrderById.mockResolvedValue({
+      ...deliveredOrder,
+      payments: [{ provider: 'CASH', amount: '30.00' }],
+    });
+
+    await expect(
+      service.resendDeliveryEmail({} as any, 'order-1'),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('resends the delivery email for a delivered ToyyibPay order', async () => {
+    await service.resendDeliveryEmail({} as any, 'order-1');
+
+    expect(orderDeliveryRepository.resendDeliveryEmail).toHaveBeenCalledWith(
+      'order-1',
+      'rider@example.com',
+      30,
+    );
+  });
+});

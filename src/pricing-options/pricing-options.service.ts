@@ -7,7 +7,8 @@ export class PricingOptionsService {
   constructor(private readonly repository: PricingOptionsRepository) {}
 
   async list(photographerId: string): Promise<PricingOptionResponseDto[]> {
-    const options = await this.repository.findAllForPhotographer(photographerId);
+    const options =
+      await this.repository.findAllForPhotographer(photographerId);
     return options.map((option) => this.toResponse(option));
   }
 
@@ -38,7 +39,10 @@ export class PricingOptionsService {
     await this.repository.delete(id);
   }
 
-  private async assertOwnedByPhotographer(photographerId: string, id: string): Promise<void> {
+  private async assertOwnedByPhotographer(
+    photographerId: string,
+    id: string,
+  ): Promise<void> {
     const option = await this.repository.findById(id);
 
     if (!option || option.photographerId !== photographerId) {

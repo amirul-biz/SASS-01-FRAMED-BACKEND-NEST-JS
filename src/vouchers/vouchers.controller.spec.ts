@@ -33,12 +33,19 @@ describe('VouchersController', () => {
       providers: [{ provide: VouchersService, useValue: service }],
     })
       .overrideGuard(FirebaseAuthGuard)
-      .useValue({ canActivate: (ctx: any) => {
-        ctx.switchToHttp().getRequest().dbUser = {
-          userPlatforms: [{ role: 'PHOTOGRAPHER', photographerProfile: { id: 'photographer-1' } }],
-        };
-        return true;
-      } })
+      .useValue({
+        canActivate: (ctx: any) => {
+          ctx.switchToHttp().getRequest().dbUser = {
+            userPlatforms: [
+              {
+                role: 'PHOTOGRAPHER',
+                photographerProfile: { id: 'photographer-1' },
+              },
+            ],
+          };
+          return true;
+        },
+      })
       .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .compile();
@@ -62,6 +69,8 @@ describe('VouchersController', () => {
   it('DELETE /vouchers/:id returns 409 when the service throws ConflictException', async () => {
     service.remove.mockRejectedValue(new ConflictException('in use'));
 
-    await request(app.getHttpServer()).delete('/vouchers/voucher-1').expect(409);
+    await request(app.getHttpServer())
+      .delete('/vouchers/voucher-1')
+      .expect(409);
   });
 });

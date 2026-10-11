@@ -11,13 +11,26 @@ import {
 // Shared across every provider's own mark-as-paid/webhook flow (cash, ToyyibPay, ...): what's
 // needed to compute commission and write the transition — the option's isImposeCommission, the
 // order's current status, the customer's email (for providers that email delivery, e.g.
-// ToyyibPay), and the undiscounted per-item prices.
+// ToyyibPay), and the undiscounted per-item prices. The photographer contact fields are only
+// used by the customer-facing return-URL page (its WhatsApp fallback) — harmless, unused extra
+// columns for every other caller of this same include.
 const PAYMENT_FOR_MARKING_INCLUDE = {
   merchantPaymentPlatformOption: {
     select: { userPlatformId: true, isImposeCommission: true },
   },
   order: {
-    select: { status: true, email: true, items: { select: { price: true } } },
+    select: {
+      status: true,
+      email: true,
+      items: { select: { price: true } },
+      event: {
+        select: {
+          photographerProfile: {
+            select: { contactNo: true, phone: true },
+          },
+        },
+      },
+    },
   },
 } as const;
 

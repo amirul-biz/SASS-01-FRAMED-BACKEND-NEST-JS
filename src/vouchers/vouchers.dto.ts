@@ -14,7 +14,10 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export type WireVoucherDiscountType = 'flat-tier' | 'percent-tier';
-export const WIRE_VOUCHER_DISCOUNT_TYPES: WireVoucherDiscountType[] = ['flat-tier', 'percent-tier'];
+export const WIRE_VOUCHER_DISCOUNT_TYPES: WireVoucherDiscountType[] = [
+  'flat-tier',
+  'percent-tier',
+];
 
 export class VoucherConditionDto {
   @ApiProperty({ example: 3 })
@@ -58,7 +61,10 @@ export class UpdateVoucherDto {
   @IsNotEmpty({ message: 'Name is required' })
   name?: string;
 
-  @ApiPropertyOptional({ example: 'percent-tier', enum: WIRE_VOUCHER_DISCOUNT_TYPES })
+  @ApiPropertyOptional({
+    example: 'percent-tier',
+    enum: WIRE_VOUCHER_DISCOUNT_TYPES,
+  })
   @IsOptional()
   @IsIn(WIRE_VOUCHER_DISCOUNT_TYPES)
   discountType?: WireVoucherDiscountType;
@@ -75,7 +81,9 @@ export class VoucherResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() photographerId!: string;
   @ApiProperty() name!: string;
-  @ApiProperty({ enum: WIRE_VOUCHER_DISCOUNT_TYPES }) discountType!: WireVoucherDiscountType;
-  @ApiProperty({ type: [VoucherConditionDto] }) conditions!: VoucherConditionDto[];
+  @ApiProperty({ enum: WIRE_VOUCHER_DISCOUNT_TYPES })
+  discountType!: WireVoucherDiscountType;
+  @ApiProperty({ type: [VoucherConditionDto] })
+  conditions!: VoucherConditionDto[];
   @ApiProperty() bundlesUsingCount!: number;
 }

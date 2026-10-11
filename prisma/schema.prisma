@@ -427,7 +427,11 @@ model MerchantTransactionAuditLog {
   source          TransitionSource
   createdAt       DateTime           @default(now()) @map("created_at")
 
-  @@unique([paymentId, toStatus])
+  // Not just [paymentId, toStatus]: delivery is an order-status-only event (the payment stays
+  // PAID, unchanged) — including toOrderStatus lets the PROCESSING->DELIVERED row coexist with
+  // the earlier row that first marked the same payment PAID, while still blocking a literal
+  // duplicate of either.
+  @@unique([paymentId, toStatus, toOrderStatus])
   @@map("merchant_transaction_audit_logs")
 }
 

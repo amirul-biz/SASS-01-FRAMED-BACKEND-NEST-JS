@@ -3,7 +3,10 @@ import { PrismaService } from 'src/config/database/prisma.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
 import type { Event, Prisma } from '../../generated/prisma/client';
 import { VoucherDiscountType } from '../../generated/prisma/client';
-import type { VoucherConditionDto, WireVoucherDiscountType } from '../vouchers/vouchers.dto';
+import type {
+  VoucherConditionDto,
+  WireVoucherDiscountType,
+} from '../vouchers/vouchers.dto';
 import type { CreateEventDto, EventResponseDto } from './event.dto';
 import type {
   LatestPublishedEvent,
@@ -12,7 +15,10 @@ import type {
   UpdateEventRepositoryData,
 } from './event.interface';
 
-const TO_WIRE_VOUCHER_TYPE: Record<VoucherDiscountType, WireVoucherDiscountType> = {
+const TO_WIRE_VOUCHER_TYPE: Record<
+  VoucherDiscountType,
+  WireVoucherDiscountType
+> = {
   [VoucherDiscountType.FLAT_TIER]: 'flat-tier',
   [VoucherDiscountType.PERCENT_TIER]: 'percent-tier',
 };
@@ -68,7 +74,8 @@ const EVENT_WITH_BUNDLES_INCLUDE = {
   pricingBundles: { select: { pricingBundleId: true } },
 } satisfies Prisma.EventInclude;
 
-type EventWithBundlesRow = Event & Prisma.EventGetPayload<{ include: typeof EVENT_WITH_BUNDLES_INCLUDE }>;
+type EventWithBundlesRow = Event &
+  Prisma.EventGetPayload<{ include: typeof EVENT_WITH_BUNDLES_INCLUDE }>;
 
 function toLatestPublishedEvent(
   event: PublishedEventCardRow,
@@ -90,7 +97,10 @@ function toLatestPublishedEvent(
   };
 }
 
-type PublishedEventDetailRaw = Omit<PublishedEventDetail, 'albumCoverPhotoUrls'> & {
+type PublishedEventDetailRaw = Omit<
+  PublishedEventDetail,
+  'albumCoverPhotoUrls'
+> & {
   albumCoverPhotoKeys: string[];
 };
 
@@ -155,7 +165,10 @@ export class EventRepository {
     private readonly publicStorageService: PublicStorageService,
   ) {}
 
-  async create(photographerId: string, data: CreateEventDto): Promise<EventResponseDto> {
+  async create(
+    photographerId: string,
+    data: CreateEventDto,
+  ): Promise<EventResponseDto> {
     const event = await this.prisma.event.create({
       data: {
         photographerId,
@@ -168,7 +181,9 @@ export class EventRepository {
         coverPhotoKey: data.coverPhotoKey,
         ...(data.pricingBundleIds && {
           pricingBundles: {
-            create: data.pricingBundleIds.map((pricingBundleId) => ({ pricingBundleId })),
+            create: data.pricingBundleIds.map((pricingBundleId) => ({
+              pricingBundleId,
+            })),
           },
         }),
       },
@@ -195,12 +210,17 @@ export class EventRepository {
     ]);
 
     return {
-      items: items.map((event) => toEventResponse(event, this.publicStorageService)),
+      items: items.map((event) =>
+        toEventResponse(event, this.publicStorageService),
+      ),
       totalItemCount,
     };
   }
 
-  async getOneOwned(id: string, photographerId: string): Promise<EventResponseDto | null> {
+  async getOneOwned(
+    id: string,
+    photographerId: string,
+  ): Promise<EventResponseDto | null> {
     const event = await this.prisma.event.findFirst({
       where: { id, photographerId, deletedAt: null },
       include: EVENT_WITH_BUNDLES_INCLUDE,
@@ -208,20 +228,29 @@ export class EventRepository {
     return event ? toEventResponse(event, this.publicStorageService) : null;
   }
 
-  async countOwnedBundles(photographerId: string, pricingBundleIds: string[]): Promise<number> {
+  async countOwnedBundles(
+    photographerId: string,
+    pricingBundleIds: string[],
+  ): Promise<number> {
     return await this.prisma.pricingBundle.count({
       where: { id: { in: pricingBundleIds }, photographerId },
     });
   }
 
-  async update(id: string, data: UpdateEventRepositoryData): Promise<EventResponseDto> {
+  async update(
+    id: string,
+    data: UpdateEventRepositoryData,
+  ): Promise<EventResponseDto> {
     const { pricingBundleIds } = data;
 
     if (pricingBundleIds !== undefined) {
       const [, , event] = await this.prisma.$transaction([
         this.prisma.eventPricingBundle.deleteMany({ where: { eventId: id } }),
         this.prisma.eventPricingBundle.createMany({
-          data: pricingBundleIds.map((pricingBundleId) => ({ eventId: id, pricingBundleId })),
+          data: pricingBundleIds.map((pricingBundleId) => ({
+            eventId: id,
+            pricingBundleId,
+          })),
         }),
         this.prisma.event.update({
           where: { id },
@@ -240,7 +269,9 @@ export class EventRepository {
     return toEventResponse(event, this.publicStorageService);
   }
 
-  private buildUpdateData(data: UpdateEventRepositoryData): Prisma.EventUpdateInput {
+  private buildUpdateData(
+    data: UpdateEventRepositoryData,
+  ): Prisma.EventUpdateInput {
     return {
       ...(data.title !== undefined && { title: data.title }),
       ...(data.description !== undefined && { description: data.description }),
@@ -260,12 +291,16 @@ export class EventRepository {
     };
   }
 
-  async getPublishedDetail(id: string): Promise<PublishedEventDetailRaw | null> {
+  async getPublishedDetail(
+    id: string,
+  ): Promise<PublishedEventDetailRaw | null> {
     const event = await this.prisma.event.findFirst({
       where: { id, isPublished: true, deletedAt: null },
       select: PUBLISHED_EVENT_DETAIL_SELECT,
     });
-    return event ? toPublishedEventDetail(event, this.publicStorageService) : null;
+    return event
+      ? toPublishedEventDetail(event, this.publicStorageService)
+      : null;
   }
 
   // Cheap existence check for endpoints (like the photo list) that only need to confirm the
@@ -293,7 +328,9 @@ export class EventRepository {
       select: PUBLISHED_EVENT_CARD_SELECT,
     });
 
-    return events.map((event) => toLatestPublishedEvent(event, this.publicStorageService));
+    return events.map((event) =>
+      toLatestPublishedEvent(event, this.publicStorageService),
+    );
   }
 
   async getPublishedList(filters: {
@@ -333,7 +370,9 @@ export class EventRepository {
     ]);
 
     return {
-      items: events.map((event) => toLatestPublishedEvent(event, this.publicStorageService)),
+      items: events.map((event) =>
+        toLatestPublishedEvent(event, this.publicStorageService),
+      ),
       totalItemCount,
     };
   }

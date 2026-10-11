@@ -17,13 +17,18 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EventCategory } from '../../generated/prisma/enums';
-import { PricingOptionSummaryDto, VoucherSummaryDto } from '../pricing-bundles/pricing-bundles.dto';
+import {
+  PricingOptionSummaryDto,
+  VoucherSummaryDto,
+} from '../pricing-bundles/pricing-bundles.dto';
 import { CLIENT_EVENTS_PAGINATION } from './client.constants';
 
 export class ClientLatestEventDto {
   @ApiProperty() @IsString() id!: string;
   @ApiProperty() @IsString() title!: string;
-  @ApiProperty({ enum: EventCategory }) @IsEnum(EventCategory) category!: EventCategory;
+  @ApiProperty({ enum: EventCategory })
+  @IsEnum(EventCategory)
+  category!: EventCategory;
 
   @ApiPropertyOptional({ nullable: true })
   @IsString()
@@ -66,7 +71,9 @@ export class ClientEventListQueryDto {
 
   @ApiPropertyOptional() @IsString() @IsOptional() photographerId?: string;
 
-  @ApiPropertyOptional({ example: CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_NUMBER })
+  @ApiPropertyOptional({
+    example: CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_NUMBER,
+  })
   @Type(() => Number)
   @IsInt({ message: 'pageNumber must be an integer' })
   @Min(1, { message: 'pageNumber must be at least 1' })
@@ -211,8 +218,10 @@ export class ClientEventPhotoDto {
   @IsOptional()
   url!: string | null;
 
-  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() width!: number | null;
-  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() height!: number | null;
+  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() width!:
+    number | null;
+  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() height!:
+    number | null;
 
   @ApiPropertyOptional({ nullable: true })
   @Type(() => Date)
@@ -221,7 +230,9 @@ export class ClientEventPhotoDto {
 }
 
 export class ClientEventPhotoListQueryDto {
-  @ApiPropertyOptional({ example: CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_NUMBER })
+  @ApiPropertyOptional({
+    example: CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_NUMBER,
+  })
   @Type(() => Number)
   @IsInt({ message: 'pageNumber must be an integer' })
   @Min(1, { message: 'pageNumber must be at least 1' })
@@ -238,19 +249,34 @@ export class ClientEventPhotoListQueryDto {
   @IsOptional()
   pageSize: number = CLIENT_EVENTS_PAGINATION.DEFAULT_PAGE_SIZE;
 
-  @ApiPropertyOptional({ description: 'Filters to photos whose original filename contains this text (case-insensitive).' })
+  @ApiPropertyOptional({
+    description:
+      'Filters to photos whose original filename contains this text (case-insensitive).',
+  })
   @IsString()
   @MaxLength(120)
   @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({ example: '10:00', description: 'Time-of-day lower bound (HH:mm, 24h) on when the photo was captured.' })
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'capturedFrom must be in HH:mm format' })
+  @ApiPropertyOptional({
+    example: '10:00',
+    description:
+      'Time-of-day lower bound (HH:mm, 24h) on when the photo was captured.',
+  })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
+    message: 'capturedFrom must be in HH:mm format',
+  })
   @IsOptional()
   capturedFrom?: string;
 
-  @ApiPropertyOptional({ example: '11:00', description: 'Time-of-day upper bound (HH:mm, 24h) on when the photo was captured.' })
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'capturedTo must be in HH:mm format' })
+  @ApiPropertyOptional({
+    example: '11:00',
+    description:
+      'Time-of-day upper bound (HH:mm, 24h) on when the photo was captured.',
+  })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
+    message: 'capturedTo must be in HH:mm format',
+  })
   @IsOptional()
   capturedTo?: string;
 }

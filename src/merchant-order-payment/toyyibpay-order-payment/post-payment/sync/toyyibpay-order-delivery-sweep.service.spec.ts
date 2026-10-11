@@ -27,8 +27,18 @@ describe('ToyyibPayOrderDeliverySweepService.redeliverStuckOrders', () => {
 
   it('redelivers every stuck order and reports how many actually delivered', async () => {
     merchantOrderPaymentRepository.getUndeliveredPaidOrders.mockResolvedValue([
-      { orderId: 'order-1', email: 'a@example.com' },
-      { orderId: 'order-2', email: 'b@example.com' },
+      {
+        orderId: 'order-1',
+        paymentId: 'pay-1',
+        email: 'a@example.com',
+        amount: 30,
+      },
+      {
+        orderId: 'order-2',
+        paymentId: 'pay-2',
+        email: 'b@example.com',
+        amount: 45,
+      },
     ]);
     merchantOrderPaymentRepository.deliverOrder
       .mockResolvedValueOnce(true)
@@ -38,20 +48,36 @@ describe('ToyyibPayOrderDeliverySweepService.redeliverStuckOrders', () => {
       checked: 2,
       delivered: 1,
     });
-    expect(merchantOrderPaymentRepository.deliverOrder).toHaveBeenCalledWith(
-      'order-1',
-      'a@example.com',
-    );
-    expect(merchantOrderPaymentRepository.deliverOrder).toHaveBeenCalledWith(
-      'order-2',
-      'b@example.com',
-    );
+    expect(merchantOrderPaymentRepository.deliverOrder).toHaveBeenCalledWith({
+      orderId: 'order-1',
+      paymentId: 'pay-1',
+      email: 'a@example.com',
+      amount: 30,
+      source: 'SYSTEM',
+    });
+    expect(merchantOrderPaymentRepository.deliverOrder).toHaveBeenCalledWith({
+      orderId: 'order-2',
+      paymentId: 'pay-2',
+      email: 'b@example.com',
+      amount: 45,
+      source: 'SYSTEM',
+    });
   });
 
   it('does not let one order throwing stop the rest of the sweep', async () => {
     merchantOrderPaymentRepository.getUndeliveredPaidOrders.mockResolvedValue([
-      { orderId: 'order-1', email: 'a@example.com' },
-      { orderId: 'order-2', email: 'b@example.com' },
+      {
+        orderId: 'order-1',
+        paymentId: 'pay-1',
+        email: 'a@example.com',
+        amount: 30,
+      },
+      {
+        orderId: 'order-2',
+        paymentId: 'pay-2',
+        email: 'b@example.com',
+        amount: 45,
+      },
     ]);
     merchantOrderPaymentRepository.deliverOrder
       .mockRejectedValueOnce(new Error('db exploded'))

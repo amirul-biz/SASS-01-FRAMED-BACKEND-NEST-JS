@@ -16,7 +16,9 @@ export class PricingBundlesRepository {
       orderBy: { createdAt: 'asc' },
       include: BUNDLE_INCLUDE,
     });
-    return Promise.all(bundles.map((bundle) => this.withEventsUsingCount(bundle)));
+    return Promise.all(
+      bundles.map((bundle) => this.withEventsUsingCount(bundle)),
+    );
   }
 
   async findById(id: string) {
@@ -42,7 +44,9 @@ export class PricingBundlesRepository {
         ...bundleData,
         vouchers: { create: voucherIds.map((voucherId) => ({ voucherId })) },
         pricingOptions: {
-          create: pricingOptionIds.map((pricingOptionId) => ({ pricingOptionId })),
+          create: pricingOptionIds.map((pricingOptionId) => ({
+            pricingOptionId,
+          })),
         },
       },
       include: BUNDLE_INCLUDE,
@@ -64,13 +68,21 @@ export class PricingBundlesRepository {
       if (voucherIds !== undefined) {
         await tx.bundleVoucher.deleteMany({ where: { pricingBundleId: id } });
         await tx.bundleVoucher.createMany({
-          data: voucherIds.map((voucherId) => ({ pricingBundleId: id, voucherId })),
+          data: voucherIds.map((voucherId) => ({
+            pricingBundleId: id,
+            voucherId,
+          })),
         });
       }
       if (pricingOptionIds !== undefined) {
-        await tx.bundlePricingOption.deleteMany({ where: { pricingBundleId: id } });
+        await tx.bundlePricingOption.deleteMany({
+          where: { pricingBundleId: id },
+        });
         await tx.bundlePricingOption.createMany({
-          data: pricingOptionIds.map((pricingOptionId) => ({ pricingBundleId: id, pricingOptionId })),
+          data: pricingOptionIds.map((pricingOptionId) => ({
+            pricingBundleId: id,
+            pricingOptionId,
+          })),
         });
       }
       return tx.pricingBundle.update({

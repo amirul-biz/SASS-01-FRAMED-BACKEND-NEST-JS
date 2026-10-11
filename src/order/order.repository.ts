@@ -77,6 +77,13 @@ export class OrderRepository {
     });
   }
 
+  async getOrderById(id: string): Promise<OrderPayload | null> {
+    return await this.prisma.order.findUnique({
+      where: { id },
+      include: ORDER_INCLUDE,
+    });
+  }
+
   async countUploadedPhotosForEvent(
     eventId: string,
     photoIds: string[],
@@ -99,12 +106,16 @@ export class OrderRepository {
       eventId,
       status,
       paymentTracking,
+      orderIdSearch,
+      emailSearch,
     }: {
       skip: number;
       take: number;
       eventId?: string;
       status?: OrderStatus;
       paymentTracking?: OrderPaymentTracking;
+      orderIdSearch?: string;
+      emailSearch?: string;
     },
   ): Promise<PhotographerOrderPage> {
     const where = {
@@ -112,6 +123,12 @@ export class OrderRepository {
       ...(eventId && { eventId }),
       ...(status && { status }),
       ...getPaymentTrackingWhere(paymentTracking),
+      ...(orderIdSearch && {
+        id: { startsWith: orderIdSearch, mode: 'insensitive' },
+      }),
+      ...(emailSearch && {
+        email: { contains: emailSearch, mode: 'insensitive' },
+      }),
     } satisfies Prisma.OrderWhereInput;
 
     const [items, totalItemCount, totals] = await this.prisma.$transaction([

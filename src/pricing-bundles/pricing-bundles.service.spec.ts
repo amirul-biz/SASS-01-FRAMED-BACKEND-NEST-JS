@@ -55,9 +55,16 @@ describe('PricingBundlesService', () => {
       const [result] = await service.list('photographer-1');
 
       expect(result.vouchers).toEqual([
-        { id: 'voucher-1', name: 'Group Discount', discountType: 'percent-tier', conditions: voucher.conditions },
+        {
+          id: 'voucher-1',
+          name: 'Group Discount',
+          discountType: 'percent-tier',
+          conditions: voucher.conditions,
+        },
       ]);
-      expect(result.pricingOptions).toEqual([{ id: 'option-1', label: '30MP JPEG', price: 12 }]);
+      expect(result.pricingOptions).toEqual([
+        { id: 'option-1', label: '30MP JPEG', price: 12 },
+      ]);
       expect(result.fullGalleryPrice).toBe(0);
       expect(result.eventsUsingCount).toBe(0);
     });
@@ -88,7 +95,10 @@ describe('PricingBundlesService', () => {
 
   describe('update', () => {
     it('throws NotFoundException when owned by a different photographer', async () => {
-      repository.findById.mockResolvedValue({ ...bundle, photographerId: 'someone-else' });
+      repository.findById.mockResolvedValue({
+        ...bundle,
+        photographerId: 'someone-else',
+      });
 
       await expect(
         service.update('photographer-1', 'bundle-1', { name: 'Renamed' }),
@@ -101,18 +111,21 @@ describe('PricingBundlesService', () => {
     it('throws ConflictException when an event still uses the bundle', async () => {
       repository.findById.mockResolvedValue({ ...bundle, eventsUsingCount: 2 });
 
-      await expect(service.remove('photographer-1', 'bundle-1')).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.remove('photographer-1', 'bundle-1'),
+      ).rejects.toThrow(ConflictException);
       expect(repository.delete).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when owned by a different photographer', async () => {
-      repository.findById.mockResolvedValue({ ...bundle, photographerId: 'someone-else' });
+      repository.findById.mockResolvedValue({
+        ...bundle,
+        photographerId: 'someone-else',
+      });
 
-      await expect(service.remove('photographer-1', 'bundle-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.remove('photographer-1', 'bundle-1'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deletes when owned by the caller and unused', async () => {

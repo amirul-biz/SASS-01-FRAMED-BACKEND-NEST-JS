@@ -10,7 +10,10 @@ export class FirebaseService {
     if (!getApps().length) {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(
+        /\\n/g,
+        '\n',
+      );
 
       if (projectId && clientEmail && privateKey) {
         try {
@@ -32,7 +35,9 @@ export class FirebaseService {
 
   async createUser(email: string, password: string) {
     if (!getApps().length) {
-      throw new Error('Firebase is not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.');
+      throw new Error(
+        'Firebase is not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.',
+      );
     }
 
     return await getAuth().createUser({ email, password });
@@ -56,10 +61,17 @@ export class FirebaseService {
     { uid: string; email: string | null; disabled: boolean; createdAt: Date }[]
   > {
     if (!getApps().length) {
-      throw new Error('Firebase is not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.');
+      throw new Error(
+        'Firebase is not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.',
+      );
     }
 
-    const result: { uid: string; email: string | null; disabled: boolean; createdAt: Date }[] = [];
+    const result: {
+      uid: string;
+      email: string | null;
+      disabled: boolean;
+      createdAt: Date;
+    }[] = [];
     let pageToken: string | undefined;
 
     do {
@@ -80,7 +92,9 @@ export class FirebaseService {
 
   async setUserDisabled(uid: string, disabled: boolean): Promise<void> {
     if (!getApps().length) {
-      throw new Error('Firebase is not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.');
+      throw new Error(
+        'Firebase is not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.',
+      );
     }
 
     await getAuth().updateUser(uid, { disabled });

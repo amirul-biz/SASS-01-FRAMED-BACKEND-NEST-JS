@@ -33,12 +33,19 @@ describe('PricingBundlesController', () => {
       providers: [{ provide: PricingBundlesService, useValue: service }],
     })
       .overrideGuard(FirebaseAuthGuard)
-      .useValue({ canActivate: (ctx: any) => {
-        ctx.switchToHttp().getRequest().dbUser = {
-          userPlatforms: [{ role: 'PHOTOGRAPHER', photographerProfile: { id: 'photographer-1' } }],
-        };
-        return true;
-      } })
+      .useValue({
+        canActivate: (ctx: any) => {
+          ctx.switchToHttp().getRequest().dbUser = {
+            userPlatforms: [
+              {
+                role: 'PHOTOGRAPHER',
+                photographerProfile: { id: 'photographer-1' },
+              },
+            ],
+          };
+          return true;
+        },
+      })
       .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .compile();
@@ -50,7 +57,7 @@ describe('PricingBundlesController', () => {
   afterEach(async () => {
     await app.close();
   });
-// .
+  // .
   it('GET /pricing-bundles passes the guard-derived photographer id to the service', async () => {
     service.list.mockResolvedValue([]);
 
@@ -62,6 +69,8 @@ describe('PricingBundlesController', () => {
   it('DELETE /pricing-bundles/:id returns 409 when the service throws ConflictException', async () => {
     service.remove.mockRejectedValue(new ConflictException('in use'));
 
-    await request(app.getHttpServer()).delete('/pricing-bundles/bundle-1').expect(409);
+    await request(app.getHttpServer())
+      .delete('/pricing-bundles/bundle-1')
+      .expect(409);
   });
 });

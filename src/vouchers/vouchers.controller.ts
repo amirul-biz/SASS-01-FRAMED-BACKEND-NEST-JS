@@ -13,7 +13,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { VouchersService } from './vouchers.service';
-import { CreateVoucherDto, UpdateVoucherDto, VoucherResponseDto } from './vouchers.dto';
+import {
+  CreateVoucherDto,
+  UpdateVoucherDto,
+  VoucherResponseDto,
+} from './vouchers.dto';
 import { CurrentPhotographerId } from '../common/decorators/current-photographer-id.decorator';
 import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -30,7 +34,9 @@ export class VouchersController {
   constructor(private readonly service: VouchersService) {}
 
   @Get()
-  list(@CurrentPhotographerId() photographerId: string): Promise<VoucherResponseDto[]> {
+  list(
+    @CurrentPhotographerId() photographerId: string,
+  ): Promise<VoucherResponseDto[]> {
     return this.service.list(photographerId);
   }
 

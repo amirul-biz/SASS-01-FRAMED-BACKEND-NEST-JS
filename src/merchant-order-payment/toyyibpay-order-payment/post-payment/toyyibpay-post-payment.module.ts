@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../../config/database/prisma.module';
 import { CommissionModule } from '../../../commission/commission-config/commission.module';
+import { EmailModule } from '../../../email/email.module';
 import { MerchantPaymentPlatformModule } from '../../../merchant-payment-platform/merchant-payment-platform.module';
 import { ToyyibPayPaymentConfigModule } from '../../../merchant-payment-platform/toyyibpay-payment-platform/toyyibpay-payment-config/toyyibpay-payment-config.module';
 import { MerchantOrderPaymentModule } from '../../merchant-order-payment.module';
@@ -22,6 +23,7 @@ import { ToyyibPayWebhookService } from './webhook/toyyibpay-webhook.service';
     PrismaModule,
     MerchantOrderPaymentModule,
     CommissionModule,
+    EmailModule,
     MerchantPaymentPlatformModule,
     ToyyibPayPaymentConfigModule,
     ToyyibPayPrePaymentModule,

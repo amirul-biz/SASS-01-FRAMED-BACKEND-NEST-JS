@@ -38,7 +38,9 @@ export class AdminController {
 
   @Post('photographers')
   @UsePipes(new ValidationPipe({ transform: true }))
-  async registerPhotographer(@Body() dto: AdminRegisterPhotographerDto): Promise<{ success: boolean }> {
+  async registerPhotographer(
+    @Body() dto: AdminRegisterPhotographerDto,
+  ): Promise<{ success: boolean }> {
     await this.adminService.registerPhotographer(dto);
     return { success: true };
   }
@@ -68,13 +70,17 @@ export class AdminController {
 
   @Get('events')
   @UsePipes(new ValidationPipe({ transform: true }))
-  listEvents(@Query() query: AdminEventsQueryDto): Promise<AdminPaginatedEventsDto> {
+  listEvents(
+    @Query() query: AdminEventsQueryDto,
+  ): Promise<AdminPaginatedEventsDto> {
     return this.adminService.listEvents(query);
   }
 
   @Get('orders')
   @UsePipes(new ValidationPipe({ transform: true }))
-  listOrders(@Query() query: AdminOrdersQueryDto): Promise<AdminPaginatedOrdersDto> {
+  listOrders(
+    @Query() query: AdminOrdersQueryDto,
+  ): Promise<AdminPaginatedOrdersDto> {
     return this.adminService.listOrders(query);
   }
 }

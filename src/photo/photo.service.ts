@@ -176,7 +176,13 @@ export class PhotoService {
 
   async listPublishedEventPhotos(
     eventId: string,
-    query: { pageNumber: number; pageSize: number; search?: string; capturedFrom?: string; capturedTo?: string },
+    query: {
+      pageNumber: number;
+      pageSize: number;
+      search?: string;
+      capturedFrom?: string;
+      capturedTo?: string;
+    },
   ): Promise<PaginatedPublicPhotoList> {
     // Cheap existence check only — the bundles/vouchers/album-cover join that
     // getPublishedEventDetail does is irrelevant here and was costing a second query per page.
@@ -219,10 +225,15 @@ export class PhotoService {
     const photo = await this.getOwnedPhotoOrThrow(eventId, photoId);
 
     if (photo.status !== 'UPLOADED') {
-      throw new BadRequestException('Only uploaded photos can be set as an album cover');
+      throw new BadRequestException(
+        'Only uploaded photos can be set as an album cover',
+      );
     }
 
-    const updated = await this.photoRepository.updateAlbumCover(photo.id, dto.isEventAlbumCover);
+    const updated = await this.photoRepository.updateAlbumCover(
+      photo.id,
+      dto.isEventAlbumCover,
+    );
     return this.toResponseDto(updated);
   }
 

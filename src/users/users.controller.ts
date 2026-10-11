@@ -17,9 +17,7 @@ export class UsersController {
     return {
       id: user.id,
       email: user.email,
-      roles: user.userPlatforms.map((platform) =>
-        platform.role.toLowerCase(),
-      ),
+      roles: user.userPlatforms.map((platform) => platform.role.toLowerCase()),
     };
   }
 }

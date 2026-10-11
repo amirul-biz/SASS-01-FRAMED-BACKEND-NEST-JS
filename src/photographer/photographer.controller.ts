@@ -128,7 +128,12 @@ export class PhotographerController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('nickname') nickname: string,
   ): Promise<{ available: boolean }> {
-    return { available: await this.photographerService.isNicknameAvailable(user, nickname) };
+    return {
+      available: await this.photographerService.isNicknameAvailable(
+        user,
+        nickname,
+      ),
+    };
   }
 
   @Patch('profile')

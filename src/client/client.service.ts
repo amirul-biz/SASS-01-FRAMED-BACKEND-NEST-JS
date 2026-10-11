@@ -60,14 +60,15 @@ export class ClientService {
       photographerId = profile.id;
     }
 
-    const { items, totalItemCount } = await this.eventService.getPublishedEventList({
-      search: query.search,
-      dateFrom: query.dateFrom,
-      dateTo: query.dateTo,
-      photographerId,
-      pageNumber: query.pageNumber,
-      pageSize: query.pageSize,
-    });
+    const { items, totalItemCount } =
+      await this.eventService.getPublishedEventList({
+        search: query.search,
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
+        photographerId,
+        pageNumber: query.pageNumber,
+        pageSize: query.pageSize,
+      });
 
     return {
       items,
@@ -95,14 +96,18 @@ export class ClientService {
     });
   }
 
-  async getPhotographerList(search: string | undefined): Promise<ClientTopPhotographerDto[]> {
+  async getPhotographerList(
+    search: string | undefined,
+  ): Promise<ClientTopPhotographerDto[]> {
     return await this.photographerService.searchPublicPhotographers(
       search,
       CLIENT_PHOTOGRAPHERS_LIST_MAX,
     );
   }
 
-  async getPhotographerProfile(id: string): Promise<ClientPhotographerProfileDto> {
+  async getPhotographerProfile(
+    id: string,
+  ): Promise<ClientPhotographerProfileDto> {
     return await this.photographerService.getPublicProfile(id);
   }
 }

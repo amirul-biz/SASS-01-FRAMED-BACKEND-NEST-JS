@@ -1,5 +1,8 @@
 import type { EventCategory } from '../../generated/prisma/enums';
-import type { VoucherConditionDto, WireVoucherDiscountType } from '../vouchers/vouchers.dto';
+import type {
+  VoucherConditionDto,
+  WireVoucherDiscountType,
+} from '../vouchers/vouchers.dto';
 import type { UpdateEventDto } from './event.dto';
 
 export interface UpdateEventRepositoryData extends UpdateEventDto {

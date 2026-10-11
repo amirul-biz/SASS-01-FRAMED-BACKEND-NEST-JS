@@ -16,7 +16,9 @@ describe('currentPhotographerIdFactory', () => {
       ],
     });
 
-    expect(currentPhotographerIdFactory(undefined, context)).toBe('photographer-1');
+    expect(currentPhotographerIdFactory(undefined, context)).toBe(
+      'photographer-1',
+    );
   });
 
   it('throws ForbiddenException when the user has no PHOTOGRAPHER platform', () => {
@@ -24,12 +26,16 @@ describe('currentPhotographerIdFactory', () => {
       userPlatforms: [{ role: 'ADMIN', photographerProfile: null }],
     });
 
-    expect(() => currentPhotographerIdFactory(undefined, context)).toThrow(ForbiddenException);
+    expect(() => currentPhotographerIdFactory(undefined, context)).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('throws ForbiddenException when there is no authenticated user on the request', () => {
     const context = makeContext(undefined);
 
-    expect(() => currentPhotographerIdFactory(undefined, context)).toThrow(ForbiddenException);
+    expect(() => currentPhotographerIdFactory(undefined, context)).toThrow(
+      ForbiddenException,
+    );
   });
 });

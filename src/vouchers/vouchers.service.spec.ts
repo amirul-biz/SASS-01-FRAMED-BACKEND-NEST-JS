@@ -68,24 +68,33 @@ describe('VouchersService', () => {
 
   describe('remove', () => {
     it('throws ConflictException when a bundle still uses the voucher', async () => {
-      repository.findById.mockResolvedValue({ ...voucher, bundlesUsingCount: 1 });
+      repository.findById.mockResolvedValue({
+        ...voucher,
+        bundlesUsingCount: 1,
+      });
 
-      await expect(service.remove('photographer-1', 'voucher-1')).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.remove('photographer-1', 'voucher-1'),
+      ).rejects.toThrow(ConflictException);
       expect(repository.delete).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when owned by a different photographer', async () => {
-      repository.findById.mockResolvedValue({ ...voucher, photographerId: 'someone-else' });
+      repository.findById.mockResolvedValue({
+        ...voucher,
+        photographerId: 'someone-else',
+      });
 
-      await expect(service.remove('photographer-1', 'voucher-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.remove('photographer-1', 'voucher-1'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deletes when owned by the caller and unused', async () => {
-      repository.findById.mockResolvedValue({ ...voucher, bundlesUsingCount: 0 });
+      repository.findById.mockResolvedValue({
+        ...voucher,
+        bundlesUsingCount: 0,
+      });
 
       await service.remove('photographer-1', 'voucher-1');
 

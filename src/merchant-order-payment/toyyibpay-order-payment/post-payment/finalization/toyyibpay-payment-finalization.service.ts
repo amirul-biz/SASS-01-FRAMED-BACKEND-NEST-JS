@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { CommissionService } from '../../../../commission/commission-config/commission.service';
 import type { CommissionCalculation } from '../../../../commission/commission-config/commission.interface';
 import { TransitionSource } from '../../../../../generated/prisma/enums';
+import { EmailService } from '../../../../email/email.service';
 import { OrderDeliveryRepository } from '../../../core/order-delivery/order-delivery.repository';
 import { PaymentForMarkingPayload } from '../../../core/payment-transition/payment-transition.repository';
 import { ToyyibPayPrePaymentRepository } from '../../pre-payment/toyyibpay-pre-payment.repository';
@@ -21,6 +22,7 @@ export class ToyyibPayPaymentFinalizationService {
     private readonly toyyibPayPrePaymentRepository: ToyyibPayPrePaymentRepository,
     private readonly toyyibPayWebhookRepository: ToyyibPayWebhookRepository,
     private readonly orderDeliveryRepository: OrderDeliveryRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   async finalizeAsPaid(
@@ -53,10 +55,13 @@ export class ToyyibPayPaymentFinalizationService {
       return false;
     }
 
-    await this.orderDeliveryRepository.deliverOrder(
-      payment.orderId,
-      payment.order.email,
-    );
+    await this.orderDeliveryRepository.deliverOrder({
+      orderId: payment.orderId,
+      paymentId: payment.id,
+      email: payment.order.email,
+      amount: Number(payment.amount),
+      source,
+    });
     return true;
   }
 
@@ -94,8 +99,15 @@ export class ToyyibPayPaymentFinalizationService {
       this.logger.log(
         `Payment ${payment.id} was already handled — finalizeAsFailed no-op`,
       );
+      return false;
     }
-    return wasApplied;
+
+    await this.emailService.sendPaymentFailedEmail({
+      orderId: payment.orderId,
+      email: payment.order.email,
+      amount: Number(payment.amount),
+    });
+    return true;
   }
 
   async finalizeAsProcessing(

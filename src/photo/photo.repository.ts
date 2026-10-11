@@ -16,9 +16,16 @@ function buildMinuteOfDayWhere(
   fromMinute: number | undefined,
   toMinute: number | undefined,
 ): Prisma.PhotoWhereInput {
-  if (fromMinute !== undefined && toMinute !== undefined && fromMinute > toMinute) {
+  if (
+    fromMinute !== undefined &&
+    toMinute !== undefined &&
+    fromMinute > toMinute
+  ) {
     return {
-      OR: [{ capturedMinuteOfDay: { gte: fromMinute } }, { capturedMinuteOfDay: { lte: toMinute } }],
+      OR: [
+        { capturedMinuteOfDay: { gte: fromMinute } },
+        { capturedMinuteOfDay: { lte: toMinute } },
+      ],
     };
   }
   return {
@@ -48,7 +55,11 @@ export class PhotoRepository {
 
   async getManyByEvent(
     eventId: string,
-    { status, skip, take }: { status?: PhotoUploadStatus; skip: number; take: number },
+    {
+      status,
+      skip,
+      take,
+    }: { status?: PhotoUploadStatus; skip: number; take: number },
   ): Promise<PaginatedPhotos<Photo>> {
     const where = { eventId, deletedAt: null, ...(status && { status }) };
 
@@ -58,7 +69,11 @@ export class PhotoRepository {
         // id is a tiebreaker: captured_at/uploaded_at are neither unique nor always distinct
         // (burst shots share a second, PENDING rows have no uploaded_at), so without it offset
         // pagination can duplicate or skip rows across pages when ties straddle a page boundary.
-        orderBy: [{ capturedAt: { sort: 'asc', nulls: 'last' } }, { uploadedAt: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { capturedAt: { sort: 'asc', nulls: 'last' } },
+          { uploadedAt: 'asc' },
+          { id: 'asc' },
+        ],
         skip,
         take,
       }),
@@ -76,21 +91,33 @@ export class PhotoRepository {
       search,
       fromMinute,
       toMinute,
-    }: { skip: number; take: number; search?: string; fromMinute?: number; toMinute?: number },
+    }: {
+      skip: number;
+      take: number;
+      search?: string;
+      fromMinute?: number;
+      toMinute?: number;
+    },
   ): Promise<PaginatedPhotos<Photo>> {
     const hasMinuteFilter = fromMinute !== undefined || toMinute !== undefined;
     const where = {
       eventId,
       status: 'UPLOADED' as const,
       deletedAt: null,
-      ...(search && { originalName: { contains: search, mode: 'insensitive' as const } }),
+      ...(search && {
+        originalName: { contains: search, mode: 'insensitive' as const },
+      }),
       ...(hasMinuteFilter && buildMinuteOfDayWhere(fromMinute, toMinute)),
     };
 
     const [items, totalItemCount] = await this.prisma.$transaction([
       this.prisma.photo.findMany({
         where,
-        orderBy: [{ capturedAt: { sort: 'asc', nulls: 'last' } }, { uploadedAt: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { capturedAt: { sort: 'asc', nulls: 'last' } },
+          { uploadedAt: 'asc' },
+          { id: 'asc' },
+        ],
         skip,
         take,
       }),
@@ -119,7 +146,10 @@ export class PhotoRepository {
     });
   }
 
-  async updateAlbumCover(id: string, isEventAlbumCover: boolean): Promise<Photo> {
+  async updateAlbumCover(
+    id: string,
+    isEventAlbumCover: boolean,
+  ): Promise<Photo> {
     return await this.prisma.photo.update({
       where: { id },
       data: { isEventAlbumCover },

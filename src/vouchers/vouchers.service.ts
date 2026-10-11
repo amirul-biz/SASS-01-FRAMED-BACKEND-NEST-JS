@@ -1,6 +1,14 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { VouchersRepository } from './vouchers.repository';
-import { VoucherConditionDto, VoucherResponseDto, WireVoucherDiscountType } from './vouchers.dto';
+import {
+  VoucherConditionDto,
+  VoucherResponseDto,
+  WireVoucherDiscountType,
+} from './vouchers.dto';
 import { VoucherDiscountType, Prisma } from '../../generated/prisma/client';
 
 const TO_PRISMA_TYPE: Record<WireVoucherDiscountType, VoucherDiscountType> = {
@@ -24,16 +32,23 @@ export class VouchersService {
   constructor(private readonly repository: VouchersRepository) {}
 
   async list(photographerId: string): Promise<VoucherResponseDto[]> {
-    const vouchers = await this.repository.findAllForPhotographer(photographerId);
+    const vouchers =
+      await this.repository.findAllForPhotographer(photographerId);
     return vouchers.map((voucher) => this.toResponse(voucher));
   }
 
-  async findOne(photographerId: string, id: string): Promise<VoucherResponseDto> {
+  async findOne(
+    photographerId: string,
+    id: string,
+  ): Promise<VoucherResponseDto> {
     const voucher = await this.assertOwnedByPhotographer(photographerId, id);
     return this.toResponse(voucher);
   }
 
-  async create(photographerId: string, input: VoucherInput): Promise<VoucherResponseDto> {
+  async create(
+    photographerId: string,
+    input: VoucherInput,
+  ): Promise<VoucherResponseDto> {
     const voucher = await this.repository.create({
       photographerId,
       name: input.name,
@@ -51,10 +66,16 @@ export class VouchersService {
     const existing = await this.assertOwnedByPhotographer(photographerId, id);
     const voucher = await this.repository.update(id, {
       name: changes.name,
-      discountType: changes.discountType ? TO_PRISMA_TYPE[changes.discountType] : undefined,
-      conditions: changes.conditions as unknown as Prisma.InputJsonValue | undefined,
+      discountType: changes.discountType
+        ? TO_PRISMA_TYPE[changes.discountType]
+        : undefined,
+      conditions: changes.conditions as unknown as
+        Prisma.InputJsonValue | undefined,
     });
-    return this.toResponse({ ...voucher, bundlesUsingCount: existing.bundlesUsingCount });
+    return this.toResponse({
+      ...voucher,
+      bundlesUsingCount: existing.bundlesUsingCount,
+    });
   }
 
   async remove(photographerId: string, id: string): Promise<void> {

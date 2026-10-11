@@ -10,7 +10,12 @@ export const currentPhotographerIdFactory = (
 ): string => {
   const request = context.switchToHttp().getRequest();
   const dbUser = request.dbUser as
-    | { userPlatforms: { role: string; photographerProfile: { id: string } | null }[] }
+    | {
+        userPlatforms: {
+          role: string;
+          photographerProfile: { id: string } | null;
+        }[];
+      }
     | undefined;
 
   const photographerId = dbUser?.userPlatforms.find(

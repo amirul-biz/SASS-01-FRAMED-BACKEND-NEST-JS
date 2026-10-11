@@ -6,11 +6,12 @@ import {
 } from '@nestjs/common';
 import { PrivateStorageService } from '../config/storage/private-storage.service';
 import { EventService } from '../event/event.service';
+import { OrderDeliveryRepository } from '../merchant-order-payment/core/order-delivery/order-delivery.repository';
 import { OrderHistoryService } from '../merchant-order-payment/core/order-history/order-history.service';
 import { PayableOptionService } from '../merchant-order-payment/core/payable-option/payable-option.service';
 import { ToyyibPayPrePaymentService } from '../merchant-order-payment/toyyibpay-order-payment/pre-payment/toyyibpay-pre-payment.service';
 import { PhotographerService } from '../photographer/photographer.service';
-import { PaymentProvider } from '../../generated/prisma/enums';
+import { OrderStatus, PaymentProvider } from '../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../types/express';
 import {
   CreateOrderDto,
@@ -40,6 +41,7 @@ export class OrderService {
     private readonly orderHistoryService: OrderHistoryService,
     private readonly payableOptionService: PayableOptionService,
     private readonly toyyibPayPrePaymentService: ToyyibPayPrePaymentService,
+    private readonly orderDeliveryRepository: OrderDeliveryRepository,
   ) {}
 
   async createOrder(dto: CreateOrderDto): Promise<OrderResponseDto> {
@@ -95,6 +97,25 @@ export class OrderService {
     return responseDto;
   }
 
+  // Public, unauthenticated — reached from the receipt/image links in the delivery email.
+  // orderId acts as the bearer token (unguessable UUID v4), same precedent as the ToyyibPay
+  // return-URL's billCode check; the paid-status gate on top of that is what the 400 enforces.
+  async getReceiptForCustomer(orderId: string): Promise<OrderResponseDto> {
+    const order = await this.orderRepository.getOrderById(orderId);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const isPaid =
+      order.status !== OrderStatus.PENDING_CONFIRMATION &&
+      order.status !== OrderStatus.CANCELLED;
+    if (!isPaid) {
+      throw new BadRequestException('This order has not been paid yet');
+    }
+
+    return this.getMappedOrderDto(order, true);
+  }
+
   private async resolveToyyibPayPaymentUrl(params: {
     isNew: boolean;
     paymentId: string;
@@ -145,6 +166,8 @@ export class OrderService {
         eventId: query.eventId,
         status: query.status,
         paymentTracking: query.paymentTracking,
+        orderIdSearch: query.orderIdSearch,
+        emailSearch: query.emailSearch,
       });
 
     return {
@@ -188,6 +211,48 @@ export class OrderService {
     };
   }
 
+  // Closes the gap the regular sync button has: for an already-DELIVERED order, syncPayment
+  // no-ops immediately (nothing left to sync) and never reaches the email step. This bypasses
+  // that guard directly via resendDeliveryEmail — the same method the customer-side return-URL
+  // retry button already uses.
+  async resendDeliveryEmail(
+    user: AuthenticatedUser,
+    orderId: string,
+  ): Promise<void> {
+    const ownership = await this.orderRepository.getOrderOwnershipById(orderId);
+    if (!ownership) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const photographerId =
+      await this.photographerService.getOwnPhotographerProfileId(user);
+    const isOwnOrder = ownership.event.photographerId === photographerId;
+    if (!isOwnOrder) {
+      throw new ForbiddenException('You do not have access to this order');
+    }
+
+    const order = await this.orderRepository.getOrderById(orderId);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const latestPayment = order.payments[0];
+    const canResend =
+      order.status === OrderStatus.DELIVERED &&
+      latestPayment?.provider === PaymentProvider.TOYYIBPAY;
+    if (!canResend) {
+      throw new BadRequestException(
+        'This order has nothing to resend — it must be a delivered ToyyibPay order',
+      );
+    }
+
+    await this.orderDeliveryRepository.resendDeliveryEmail(
+      orderId,
+      order.email,
+      Number(latestPayment.amount),
+    );
+  }
+
   private async isPhotosBelongToEvent(dto: CreateOrderDto): Promise<boolean> {
     const photoIds = dto.items.map((item) => item.photoId);
     const ownedCount = await this.orderRepository.countUploadedPhotosForEvent(
@@ -197,7 +262,13 @@ export class OrderService {
     return ownedCount === photoIds.length;
   }
 
-  private getMappedOrderDto(order: OrderPayload): OrderResponseDto {
+  // useDeliveryUrl is true only for the post-payment customer delivery path
+  // (getReceiptForCustomer) — the checkout response and the photographer's Studio view both keep
+  // using the regular R2_PRIVATE_BUCKET_URL via buildPublicUrl.
+  private getMappedOrderDto(
+    order: OrderPayload,
+    useDeliveryUrl = false,
+  ): OrderResponseDto {
     return {
       id: order.id,
       eventId: order.eventId,
@@ -217,7 +288,9 @@ export class OrderService {
         id: item.id,
         photoId: item.photoId,
         photoName: item.photo.originalName,
-        photoUrl: this.privateStorageService.buildPublicUrl(item.photo.key),
+        photoUrl: useDeliveryUrl
+          ? this.privateStorageService.buildDeliveryUrl(item.photo.key)
+          : this.privateStorageService.buildPublicUrl(item.photo.key),
         formatLabel: item.formatLabel,
         price: Number(item.price),
       })),

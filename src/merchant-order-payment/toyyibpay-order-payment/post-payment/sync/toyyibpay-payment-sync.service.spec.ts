@@ -376,12 +376,25 @@ describe('ToyyibPayPaymentSyncService.confirmReturnAsCustomer', () => {
     orderId: 'order-1',
     provider: 'TOYYIBPAY',
     status: 'PENDING',
+    amount: '30.00',
     merchantPaymentPlatformOptionId: 'option-1',
     merchantPaymentPlatformOption: {
       userPlatformId: 'platform-1',
       isImposeCommission: true,
     },
-    order: { status: 'PENDING_CONFIRMATION', items: [{ price: '30.00' }] },
+    order: {
+      status: 'PENDING_CONFIRMATION',
+      email: 'rider@example.com',
+      items: [{ price: '30.00' }],
+      event: {
+        photographerProfile: { contactNo: '0123456789', phone: null },
+      },
+    },
+  };
+  const expectedContactFields = {
+    orderId: 'order-1',
+    photographerContactNo: '0123456789',
+    photographerPhone: null,
   };
 
   let merchantOrderPaymentRepository: { getPaymentForMarkingById: jest.Mock };
@@ -399,6 +412,7 @@ describe('ToyyibPayPaymentSyncService.confirmReturnAsCustomer', () => {
     finalizeAsProcessing: jest.Mock;
   };
   let toyyibPayPaymentSyncRepository: { getStaleOpenPaymentIds: jest.Mock };
+  let orderDeliveryRepository: { resendDeliveryEmail: jest.Mock };
   let service: ToyyibPayPaymentSyncService;
 
   beforeEach(() => {
@@ -429,6 +443,9 @@ describe('ToyyibPayPaymentSyncService.confirmReturnAsCustomer', () => {
     toyyibPayPaymentSyncRepository = {
       getStaleOpenPaymentIds: jest.fn().mockResolvedValue([]),
     };
+    orderDeliveryRepository = {
+      resendDeliveryEmail: jest.fn().mockResolvedValue(undefined),
+    };
     service = new ToyyibPayPaymentSyncService(
       merchantOrderPaymentRepository as any,
       merchantPaymentPlatformService as any,
@@ -437,12 +454,13 @@ describe('ToyyibPayPaymentSyncService.confirmReturnAsCustomer', () => {
       toyyibPayApiClient as any,
       toyyibPayPaymentFinalizationService as any,
       toyyibPayPaymentSyncRepository as any,
+      orderDeliveryRepository as any,
     );
   });
 
   it('throws 404 and never calls ToyyibPay when the billCode does not match what is stored', async () => {
     await expect(
-      service.confirmReturnAsCustomer('pay-1', 'wrong-bill-code'),
+      service.confirmReturnAsCustomer('pay-1', 'wrong-bill-code', false),
     ).rejects.toThrow(NotFoundException);
     expect(toyyibPayApiClient.getBillTransactionStatus).not.toHaveBeenCalled();
   });
@@ -453,7 +471,7 @@ describe('ToyyibPayPaymentSyncService.confirmReturnAsCustomer', () => {
     );
 
     await expect(
-      service.confirmReturnAsCustomer('pay-1', 'bill-1'),
+      service.confirmReturnAsCustomer('pay-1', 'bill-1', false),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -463,11 +481,12 @@ describe('ToyyibPayPaymentSyncService.confirmReturnAsCustomer', () => {
       .mockResolvedValueOnce({ ...openPayment, status: 'PAID' });
 
     await expect(
-      service.confirmReturnAsCustomer('pay-1', 'bill-1'),
-    ).resolves.toEqual({ paymentStatus: 'PAID' });
+      service.confirmReturnAsCustomer('pay-1', 'bill-1', false),
+    ).resolves.toEqual({ paymentStatus: 'PAID', ...expectedContactFields });
     expect(
       toyyibPayPaymentFinalizationService.finalizeAsPaid,
     ).toHaveBeenCalledWith(openPayment, 'CUSTOMER');
+    expect(orderDeliveryRepository.resendDeliveryEmail).not.toHaveBeenCalled();
   });
 
   it('returns the current payment status without calling ToyyibPay when already resolved (e.g. webhook beat the customer to it)', async () => {
@@ -477,11 +496,39 @@ describe('ToyyibPayPaymentSyncService.confirmReturnAsCustomer', () => {
     );
 
     await expect(
-      service.confirmReturnAsCustomer('pay-1', 'bill-1'),
-    ).resolves.toEqual({ paymentStatus: 'PAID' });
+      service.confirmReturnAsCustomer('pay-1', 'bill-1', false),
+    ).resolves.toEqual({ paymentStatus: 'PAID', ...expectedContactFields });
     expect(toyyibPayApiClient.getBillTransactionStatus).not.toHaveBeenCalled();
     expect(
       toyyibPayPaymentFinalizationService.finalizeAsPaid,
     ).not.toHaveBeenCalled();
+  });
+
+  it('resends the delivery email when resendEmail is true and the payment is already PAID', async () => {
+    const alreadyPaidPayment = { ...openPayment, status: 'PAID' };
+    merchantOrderPaymentRepository.getPaymentForMarkingById.mockResolvedValue(
+      alreadyPaidPayment,
+    );
+
+    await expect(
+      service.confirmReturnAsCustomer('pay-1', 'bill-1', true),
+    ).resolves.toEqual({ paymentStatus: 'PAID', ...expectedContactFields });
+    expect(orderDeliveryRepository.resendDeliveryEmail).toHaveBeenCalledWith(
+      'order-1',
+      'rider@example.com',
+      30,
+    );
+  });
+
+  it('does not resend the delivery email when resendEmail is true but the payment is not PAID', async () => {
+    toyyibPayApiClient.getBillTransactionStatus.mockResolvedValue({
+      isPaid: false,
+      isFailed: false,
+    });
+
+    await expect(
+      service.confirmReturnAsCustomer('pay-1', 'bill-1', true),
+    ).resolves.toEqual({ paymentStatus: 'PENDING', ...expectedContactFields });
+    expect(orderDeliveryRepository.resendDeliveryEmail).not.toHaveBeenCalled();
   });
 });

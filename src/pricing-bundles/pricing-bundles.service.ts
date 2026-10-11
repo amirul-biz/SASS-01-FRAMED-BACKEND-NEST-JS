@@ -1,10 +1,24 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PricingBundlesRepository } from './pricing-bundles.repository';
-import { PricingBundleResponseDto, PricingOptionSummaryDto, VoucherSummaryDto } from './pricing-bundles.dto';
+import {
+  PricingBundleResponseDto,
+  PricingOptionSummaryDto,
+  VoucherSummaryDto,
+} from './pricing-bundles.dto';
 import { VoucherDiscountType } from '../../generated/prisma/client';
-import { VoucherConditionDto, WireVoucherDiscountType } from '../vouchers/vouchers.dto';
+import {
+  VoucherConditionDto,
+  WireVoucherDiscountType,
+} from '../vouchers/vouchers.dto';
 
-const TO_WIRE_VOUCHER_TYPE: Record<VoucherDiscountType, WireVoucherDiscountType> = {
+const TO_WIRE_VOUCHER_TYPE: Record<
+  VoucherDiscountType,
+  WireVoucherDiscountType
+> = {
   [VoucherDiscountType.FLAT_TIER]: 'flat-tier',
   [VoucherDiscountType.PERCENT_TIER]: 'percent-tier',
 };
@@ -22,11 +36,15 @@ export class PricingBundlesService {
   constructor(private readonly repository: PricingBundlesRepository) {}
 
   async list(photographerId: string): Promise<PricingBundleResponseDto[]> {
-    const bundles = await this.repository.findAllForPhotographer(photographerId);
+    const bundles =
+      await this.repository.findAllForPhotographer(photographerId);
     return bundles.map((bundle) => this.toResponse(bundle));
   }
 
-  async findOne(photographerId: string, id: string): Promise<PricingBundleResponseDto> {
+  async findOne(
+    photographerId: string,
+    id: string,
+  ): Promise<PricingBundleResponseDto> {
     const bundle = await this.assertOwnedByPhotographer(photographerId, id);
     return this.toResponse(bundle);
   }
@@ -59,7 +77,10 @@ export class PricingBundlesService {
       fullGalleryEnabled: changes.fullGalleryEnabled,
       fullGalleryPrice: changes.fullGalleryPrice,
     });
-    return this.toResponse({ ...bundle, eventsUsingCount: existing.eventsUsingCount });
+    return this.toResponse({
+      ...bundle,
+      eventsUsingCount: existing.eventsUsingCount,
+    });
   }
 
   async remove(photographerId: string, id: string): Promise<void> {
@@ -87,20 +108,37 @@ export class PricingBundlesService {
     fullGalleryEnabled: boolean;
     fullGalleryPrice: { toString(): string };
     eventsUsingCount: number;
-    vouchers: { voucher: { id: string; name: string; discountType: VoucherDiscountType; conditions: unknown } }[];
-    pricingOptions: { pricingOption: { id: string; label: string; price: { toString(): string } } }[];
+    vouchers: {
+      voucher: {
+        id: string;
+        name: string;
+        discountType: VoucherDiscountType;
+        conditions: unknown;
+      };
+    }[];
+    pricingOptions: {
+      pricingOption: {
+        id: string;
+        label: string;
+        price: { toString(): string };
+      };
+    }[];
   }): PricingBundleResponseDto {
-    const vouchers: VoucherSummaryDto[] = bundle.vouchers.map(({ voucher }) => ({
-      id: voucher.id,
-      name: voucher.name,
-      discountType: TO_WIRE_VOUCHER_TYPE[voucher.discountType],
-      conditions: voucher.conditions as VoucherConditionDto[],
-    }));
-    const pricingOptions: PricingOptionSummaryDto[] = bundle.pricingOptions.map(({ pricingOption }) => ({
-      id: pricingOption.id,
-      label: pricingOption.label,
-      price: Number(pricingOption.price),
-    }));
+    const vouchers: VoucherSummaryDto[] = bundle.vouchers.map(
+      ({ voucher }) => ({
+        id: voucher.id,
+        name: voucher.name,
+        discountType: TO_WIRE_VOUCHER_TYPE[voucher.discountType],
+        conditions: voucher.conditions as VoucherConditionDto[],
+      }),
+    );
+    const pricingOptions: PricingOptionSummaryDto[] = bundle.pricingOptions.map(
+      ({ pricingOption }) => ({
+        id: pricingOption.id,
+        label: pricingOption.label,
+        price: Number(pricingOption.price),
+      }),
+    );
     return {
       id: bundle.id,
       photographerId: bundle.photographerId,

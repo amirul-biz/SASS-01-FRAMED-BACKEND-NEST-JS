@@ -52,7 +52,10 @@ export class AdminRegisterPhotographerDto {
 }
 
 export class AdminSetPhotographerStatusDto {
-  @ApiProperty({ example: false, description: 'true = activate login, false = deactivate (blocks login)' })
+  @ApiProperty({
+    example: false,
+    description: 'true = activate login, false = deactivate (blocks login)',
+  })
   @IsBoolean()
   isActive!: boolean;
 }
@@ -84,7 +87,9 @@ export class AdminPhotographerDto {
   @IsOptional()
   profileImageUrl!: string | null;
 
-  @ApiProperty({ description: 'true = account enabled in Firebase Auth (can log in)' })
+  @ApiProperty({
+    description: 'true = account enabled in Firebase Auth (can log in)',
+  })
   @IsBoolean()
   isActive!: boolean;
 

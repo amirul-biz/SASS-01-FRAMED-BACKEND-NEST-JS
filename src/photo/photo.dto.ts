@@ -19,7 +19,12 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PhotoUploadStatus } from '../../generated/prisma/enums';
-import { PHOTO_ALLOWED_MIME_TYPES, PHOTO_BATCH_MAX_FILES, PHOTO_DELETE_BATCH_MAX, PHOTO_PAGINATION } from './photo.constants';
+import {
+  PHOTO_ALLOWED_MIME_TYPES,
+  PHOTO_BATCH_MAX_FILES,
+  PHOTO_DELETE_BATCH_MAX,
+  PHOTO_PAGINATION,
+} from './photo.constants';
 
 export class PresignPhotoFileDto {
   @ApiProperty({ example: 'DSC_0042.jpg' })
@@ -118,7 +123,9 @@ export class ReuploadPhotoDto {
 }
 
 export class ReuploadPhotoResponseDto {
-  @ApiProperty({ enum: PhotoUploadStatus }) @IsEnum(PhotoUploadStatus) status!: PhotoUploadStatus;
+  @ApiProperty({ enum: PhotoUploadStatus })
+  @IsEnum(PhotoUploadStatus)
+  status!: PhotoUploadStatus;
   @ApiProperty() @IsString() key!: string;
 
   @ApiPropertyOptional() @IsString() @IsOptional() uploadUrl?: string;
@@ -155,13 +162,21 @@ export class PhotoResponseDto {
   @ApiProperty() @IsString() originalName!: string;
   @ApiProperty() @IsString() mimeType!: string;
 
-  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() sizeBytes!: number | null;
-  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() width!: number | null;
-  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() height!: number | null;
+  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() sizeBytes!:
+    number | null;
+  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() width!:
+    number | null;
+  @ApiPropertyOptional({ nullable: true }) @IsInt() @IsOptional() height!:
+    number | null;
 
-  @ApiProperty({ enum: PhotoUploadStatus }) @IsEnum(PhotoUploadStatus) status!: PhotoUploadStatus;
+  @ApiProperty({ enum: PhotoUploadStatus })
+  @IsEnum(PhotoUploadStatus)
+  status!: PhotoUploadStatus;
 
-  @ApiPropertyOptional({ nullable: true, description: 'Only set once status is UPLOADED' })
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Only set once status is UPLOADED',
+  })
   @IsString()
   @IsOptional()
   url!: string | null;
@@ -171,7 +186,10 @@ export class PhotoResponseDto {
   @IsOptional()
   uploadedAt!: Date | null;
 
-  @ApiPropertyOptional({ nullable: true, description: 'EXIF capture date, if available' })
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'EXIF capture date, if available',
+  })
   @Type(() => Date)
   @IsOptional()
   capturedAt!: Date | null;

@@ -169,20 +169,26 @@ export class PhotographerService {
 
     if (
       dto.profileImageKey !== undefined &&
-      !dto.profileImageKey.startsWith(`photographer-profiles/${userPlatformId}/`)
+      !dto.profileImageKey.startsWith(
+        `photographer-profiles/${userPlatformId}/`,
+      )
     ) {
       throw new BadRequestException('Invalid profile image key');
     }
 
     if (
       dto.bannerKey !== undefined &&
-      !dto.bannerKey.startsWith(`photographer-profiles/${userPlatformId}/banner/`)
+      !dto.bannerKey.startsWith(
+        `photographer-profiles/${userPlatformId}/banner/`,
+      )
     ) {
       throw new BadRequestException('Invalid banner key');
     }
 
     if (dto.nickname !== undefined) {
-      const existing = await this.photographerRepository.findByNickname(dto.nickname);
+      const existing = await this.photographerRepository.findByNickname(
+        dto.nickname,
+      );
       const ownProfileId = await this.getOwnPhotographerProfileId(user);
       if (existing && existing.id !== ownProfileId) {
         throw new ConflictException('This nickname is already taken');
@@ -195,8 +201,13 @@ export class PhotographerService {
     );
   }
 
-  async isNicknameAvailable(user: AuthenticatedUser, nickname: string): Promise<boolean> {
-    const existing = await this.photographerRepository.findByNickname(nickname.toLowerCase());
+  async isNicknameAvailable(
+    user: AuthenticatedUser,
+    nickname: string,
+  ): Promise<boolean> {
+    const existing = await this.photographerRepository.findByNickname(
+      nickname.toLowerCase(),
+    );
     if (!existing) {
       return true;
     }
@@ -253,10 +264,14 @@ export class PhotographerService {
     return await this.photographerRepository.getPublicList({ search, limit });
   }
 
-  async getPublicProfile(identifier: string): Promise<PublicPhotographerProfile> {
+  async getPublicProfile(
+    identifier: string,
+  ): Promise<PublicPhotographerProfile> {
     const profile = isUUID(identifier)
       ? await this.photographerRepository.getPublicProfileById(identifier)
-      : await this.photographerRepository.getPublicProfileByNickname(identifier.toLowerCase());
+      : await this.photographerRepository.getPublicProfileByNickname(
+          identifier.toLowerCase(),
+        );
     if (!profile) {
       throw new NotFoundException('Photographer not found');
     }

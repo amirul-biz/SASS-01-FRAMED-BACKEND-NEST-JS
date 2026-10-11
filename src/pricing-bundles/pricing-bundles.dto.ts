@@ -8,7 +8,10 @@ import {
   Min,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { VoucherConditionDto, WIRE_VOUCHER_DISCOUNT_TYPES } from '../vouchers/vouchers.dto';
+import {
+  VoucherConditionDto,
+  WIRE_VOUCHER_DISCOUNT_TYPES,
+} from '../vouchers/vouchers.dto';
 import type { WireVoucherDiscountType } from '../vouchers/vouchers.dto';
 
 export class CreatePricingBundleDto {
@@ -71,8 +74,10 @@ export class UpdatePricingBundleDto {
 export class VoucherSummaryDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
-  @ApiProperty({ enum: WIRE_VOUCHER_DISCOUNT_TYPES }) discountType!: WireVoucherDiscountType;
-  @ApiProperty({ type: [VoucherConditionDto] }) conditions!: VoucherConditionDto[];
+  @ApiProperty({ enum: WIRE_VOUCHER_DISCOUNT_TYPES })
+  discountType!: WireVoucherDiscountType;
+  @ApiProperty({ type: [VoucherConditionDto] })
+  conditions!: VoucherConditionDto[];
 }
 
 export class PricingOptionSummaryDto {
@@ -86,7 +91,8 @@ export class PricingBundleResponseDto {
   @ApiProperty() photographerId!: string;
   @ApiProperty() name!: string;
   @ApiProperty({ type: [VoucherSummaryDto] }) vouchers!: VoucherSummaryDto[];
-  @ApiProperty({ type: [PricingOptionSummaryDto] }) pricingOptions!: PricingOptionSummaryDto[];
+  @ApiProperty({ type: [PricingOptionSummaryDto] })
+  pricingOptions!: PricingOptionSummaryDto[];
   @ApiProperty() fullGalleryEnabled!: boolean;
   @ApiProperty() fullGalleryPrice!: number;
   @ApiProperty() eventsUsingCount!: number;

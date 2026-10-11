@@ -34,7 +34,9 @@ export class PricingBundlesController {
   constructor(private readonly service: PricingBundlesService) {}
 
   @Get()
-  list(@CurrentPhotographerId() photographerId: string): Promise<PricingBundleResponseDto[]> {
+  list(
+    @CurrentPhotographerId() photographerId: string,
+  ): Promise<PricingBundleResponseDto[]> {
     return this.service.list(photographerId);
   }
 

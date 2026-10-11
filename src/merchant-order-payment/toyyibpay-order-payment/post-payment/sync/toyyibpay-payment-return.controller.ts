@@ -5,7 +5,6 @@ import {
   ToyyibPayPaymentSyncService,
 } from './toyyibpay-payment-sync.service';
 
-
 @Controller('toyyibpay-order-payment/post-payment')
 export class ToyyibPayPaymentReturnController {
   constructor(
@@ -20,6 +19,7 @@ export class ToyyibPayPaymentReturnController {
     return await this.toyyibPayPaymentSyncService.confirmReturnAsCustomer(
       paymentId,
       dto.billCode,
+      dto.resendEmail ?? false,
     );
   }
 }

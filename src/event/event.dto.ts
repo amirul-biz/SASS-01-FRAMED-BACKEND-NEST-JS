@@ -143,7 +143,9 @@ export class EventResponseDto {
   @IsOptional()
   description!: string | null;
 
-  @ApiProperty({ enum: EventCategory }) @IsEnum(EventCategory) category!: EventCategory;
+  @ApiProperty({ enum: EventCategory })
+  @IsEnum(EventCategory)
+  category!: EventCategory;
 
   @ApiPropertyOptional({ nullable: true })
   @IsString()
@@ -168,7 +170,10 @@ export class EventResponseDto {
   @ApiProperty() @Type(() => Date) @IsDate() createdAt!: Date;
   @ApiProperty() @Type(() => Date) @IsDate() updatedAt!: Date;
 
-  @ApiProperty({ type: [String] }) @IsArray() @IsString({ each: true }) pricingBundleIds!: string[];
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  pricingBundleIds!: string[];
 }
 
 export class PaginatedEventListResponseDto {

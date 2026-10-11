@@ -150,9 +150,12 @@ export class UpdatePhotographerProfileDto {
   contactNo?: string;
 
   @ApiPropertyOptional({ example: 'johndoe' })
-  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase() : value))
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toLowerCase() : value,
+  )
   @Matches(/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/, {
-    message: 'Nickname must be 3-30 characters: lowercase letters, numbers, and hyphens, no leading/trailing hyphen',
+    message:
+      'Nickname must be 3-30 characters: lowercase letters, numbers, and hyphens, no leading/trailing hyphen',
   })
   @IsOptional()
   nickname?: string;
@@ -223,6 +226,3 @@ export class RegisterPhotographerOutputDto {
   @Type(() => RegisterPhotographerDataDto)
   data!: RegisterPhotographerDataDto;
 }
-
-
-

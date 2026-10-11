@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OrderDeliveryRepository } from '../../../core/order-delivery/order-delivery.repository';
+import {
+  OrderDeliveryRepository,
+  UndeliveredPaidOrder,
+} from '../../../core/order-delivery/order-delivery.repository';
+import { TransitionSource } from '../../../../../generated/prisma/enums';
 
 const STUCK_ORDER_GRACE_MINUTES = 15;
 
@@ -23,10 +27,7 @@ export class ToyyibPayOrderDeliverySweepService {
 
     let delivered = 0;
     for (const order of stuckOrders) {
-      const wasDelivered = await this.redeliverSafely(
-        order.orderId,
-        order.email,
-      );
+      const wasDelivered = await this.redeliverSafely(order);
       if (wasDelivered) {
         delivered++;
       }
@@ -38,15 +39,18 @@ export class ToyyibPayOrderDeliverySweepService {
     return { checked: stuckOrders.length, delivered };
   }
 
-  private async redeliverSafely(
-    orderId: string,
-    email: string,
-  ): Promise<boolean> {
+  private async redeliverSafely(order: UndeliveredPaidOrder): Promise<boolean> {
     try {
-      return await this.orderDeliveryRepository.deliverOrder(orderId, email);
+      return await this.orderDeliveryRepository.deliverOrder({
+        orderId: order.orderId,
+        paymentId: order.paymentId,
+        email: order.email,
+        amount: order.amount,
+        source: TransitionSource.SYSTEM,
+      });
     } catch (error) {
       this.logger.warn(
-        `Failed to redeliver stuck order ${orderId}: ${(error as Error).message}`,
+        `Failed to redeliver stuck order ${order.orderId}: ${(error as Error).message}`,
       );
       return false;
     }

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 // Posted by our own frontend's return-URL landing page, not by ToyyibPay directly — so this uses
 // our own camelCase convention, unlike ToyyibPayWebhookCallbackDto (which mirrors ToyyibPay's
@@ -8,6 +8,13 @@ export class ConfirmToyyibPayReturnDto {
   @IsString()
   @IsNotEmpty()
   billCode!: string;
+
+  // Set only by the page's explicit "didn't receive your order via email?" retry click — never by
+  // the automatic landing-page check — so a duplicate send only ever happens when the customer
+  // asks for it.
+  @IsOptional()
+  @IsBoolean()
+  resendEmail?: boolean;
 
   @IsOptional()
   @IsString()

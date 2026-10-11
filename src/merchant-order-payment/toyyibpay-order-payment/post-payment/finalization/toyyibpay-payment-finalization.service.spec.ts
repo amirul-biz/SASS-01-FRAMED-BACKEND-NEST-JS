@@ -28,6 +28,7 @@ describe('ToyyibPayPaymentFinalizationService', () => {
     markPaymentAsProcessing: jest.Mock;
   };
   let merchantOrderPaymentRepository: { deliverOrder: jest.Mock };
+  let emailService: { sendPaymentFailedEmail: jest.Mock };
   let service: ToyyibPayPaymentFinalizationService;
 
   beforeEach(() => {
@@ -45,11 +46,15 @@ describe('ToyyibPayPaymentFinalizationService', () => {
     merchantOrderPaymentRepository = {
       deliverOrder: jest.fn().mockResolvedValue(true),
     };
+    emailService = {
+      sendPaymentFailedEmail: jest.fn().mockResolvedValue(undefined),
+    };
     service = new ToyyibPayPaymentFinalizationService(
       commissionService as any,
       toyyibPayPrePaymentRepository as any,
       toyyibPayWebhookRepository as any,
       merchantOrderPaymentRepository as any,
+      emailService as any,
     );
   });
 
@@ -66,10 +71,13 @@ describe('ToyyibPayPaymentFinalizationService', () => {
       null,
       'WEBHOOK',
     );
-    expect(merchantOrderPaymentRepository.deliverOrder).toHaveBeenCalledWith(
-      'order-1',
-      'customer@example.com',
-    );
+    expect(merchantOrderPaymentRepository.deliverOrder).toHaveBeenCalledWith({
+      orderId: 'order-1',
+      paymentId: 'pay-1',
+      email: 'customer@example.com',
+      amount: 30,
+      source: 'WEBHOOK',
+    });
   });
 
   it('finalizeAsPaid passes through whichever source it was called with', async () => {
@@ -82,7 +90,7 @@ describe('ToyyibPayPaymentFinalizationService', () => {
     );
   });
 
-  it('finalizeAsFailed marks it failed without computing commission', async () => {
+  it('finalizeAsFailed marks it failed without computing commission, then emails the customer', async () => {
     await service.finalizeAsFailed(payment, 'MANUAL');
 
     expect(commissionService.getCommissionForPayment).not.toHaveBeenCalled();
@@ -90,6 +98,20 @@ describe('ToyyibPayPaymentFinalizationService', () => {
       payment,
       'MANUAL',
     );
+    expect(emailService.sendPaymentFailedEmail).toHaveBeenCalledWith({
+      orderId: 'order-1',
+      email: 'customer@example.com',
+      amount: 30,
+    });
+  });
+
+  it('does not email when the failed transition was already handled', async () => {
+    toyyibPayWebhookRepository.markPaymentAsFailed.mockResolvedValue(false);
+
+    await expect(service.finalizeAsFailed(payment, 'MANUAL')).resolves.toBe(
+      false,
+    );
+    expect(emailService.sendPaymentFailedEmail).not.toHaveBeenCalled();
   });
 
   it('finalizeAsProcessing marks it processing', async () => {

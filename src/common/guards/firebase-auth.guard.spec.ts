@@ -26,7 +26,9 @@ describe('FirebaseAuthGuard', () => {
 
   it('throws UnauthorizedException when no bearer token is present', async () => {
     const context = makeContext();
-    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it("loads dbUser with each user platform's nested photographerProfile", async () => {
@@ -35,7 +37,11 @@ describe('FirebaseAuthGuard', () => {
       id: 'user-1',
       firebaseId: 'firebase-1',
       userPlatforms: [
-        { id: 'platform-1', role: 'PHOTOGRAPHER', photographerProfile: { id: 'photographer-1' } },
+        {
+          id: 'platform-1',
+          role: 'PHOTOGRAPHER',
+          photographerProfile: { id: 'photographer-1' },
+        },
       ],
     };
     prisma.user.findUnique.mockResolvedValue(dbUser);
@@ -48,6 +54,6 @@ describe('FirebaseAuthGuard', () => {
       where: { firebaseId: 'firebase-1' },
       include: { userPlatforms: { include: { photographerProfile: true } } },
     });
-    expect((context as any).__request.dbUser).toEqual(dbUser);
+    expect(context.__request.dbUser).toEqual(dbUser);
   });
 });

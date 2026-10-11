@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
 import { UserRole } from '../../generated/prisma/enums';
-import type { Prisma, PhotographerProfile } from '../../generated/prisma/client';
+import type {
+  Prisma,
+  PhotographerProfile,
+} from '../../generated/prisma/client';
 import type {
   PhotographerProfileResponseDto,
   UpdatePhotographerProfileDto,
@@ -24,7 +27,9 @@ const PUBLIC_PROFILE_SELECT = {
   createdAt: true,
 } satisfies Prisma.PhotographerProfileSelect;
 
-type PublicProfileRow = Prisma.PhotographerProfileGetPayload<{ select: typeof PUBLIC_PROFILE_SELECT }>;
+type PublicProfileRow = Prisma.PhotographerProfileGetPayload<{
+  select: typeof PUBLIC_PROFILE_SELECT;
+}>;
 
 function toProfileResponse(
   profile: PhotographerProfile,
@@ -95,7 +100,9 @@ export class PhotographerRepository {
     const profile = await this.prisma.photographerProfile.findUnique({
       where: { userPlatformId },
     });
-    return profile ? toProfileResponse(profile, this.publicStorageService) : null;
+    return profile
+      ? toProfileResponse(profile, this.publicStorageService)
+      : null;
   }
 
   async updateProfileByUserPlatformId(
@@ -143,7 +150,9 @@ export class PhotographerRepository {
       where: {
         isPublished: true,
         deletedAt: null,
-        ...(photographerIdFilter && { photographerId: { in: photographerIdFilter } }),
+        ...(photographerIdFilter && {
+          photographerId: { in: photographerIdFilter },
+        }),
       },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
@@ -156,9 +165,17 @@ export class PhotographerRepository {
 
     const profiles = await this.prisma.photographerProfile.findMany({
       where: { id: { in: grouped.map((g) => g.photographerId) } },
-      select: { id: true, name: true, bio: true, profileImageKey: true, bannerKey: true },
+      select: {
+        id: true,
+        name: true,
+        bio: true,
+        profileImageKey: true,
+        bannerKey: true,
+      },
     });
-    const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+    const profileById = new Map(
+      profiles.map((profile) => [profile.id, profile]),
+    );
 
     return grouped.flatMap((group) => {
       const profile = profileById.get(group.photographerId);
@@ -182,7 +199,9 @@ export class PhotographerRepository {
     });
   }
 
-  async getPublicProfileById(id: string): Promise<PublicPhotographerProfile | null> {
+  async getPublicProfileById(
+    id: string,
+  ): Promise<PublicPhotographerProfile | null> {
     const profile = await this.prisma.photographerProfile.findUnique({
       where: { id },
       select: PUBLIC_PROFILE_SELECT,
@@ -190,7 +209,9 @@ export class PhotographerRepository {
     return profile ? this.buildPublicProfile(profile) : null;
   }
 
-  async getPublicProfileByNickname(nickname: string): Promise<PublicPhotographerProfile | null> {
+  async getPublicProfileByNickname(
+    nickname: string,
+  ): Promise<PublicPhotographerProfile | null> {
     const profile = await this.prisma.photographerProfile.findUnique({
       where: { nickname },
       select: PUBLIC_PROFILE_SELECT,

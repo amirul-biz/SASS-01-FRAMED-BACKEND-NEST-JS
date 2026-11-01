@@ -119,7 +119,8 @@ export class OrderRepository {
     },
   ): Promise<PhotographerOrderPage> {
     const where = {
-      event: { photographerId, deletedAt: null },
+      // Includes orders of deleted (inactive) events so photographer totals stay correct.
+      event: { photographerId },
       ...(eventId && { eventId }),
       ...(status && { status }),
       ...getPaymentTrackingWhere(paymentTracking),

@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
 import { UserRole } from '../../generated/prisma/enums';
+import type { OrderStatus } from '../../generated/prisma/enums';
 import type {
   Prisma,
   PhotographerProfile,
 } from '../../generated/prisma/client';
+import { liveEventWhere } from '../event/event.repository';
 import type {
   PhotographerProfileResponseDto,
   UpdatePhotographerProfileDto,
@@ -13,9 +15,14 @@ import type {
 import type {
   CreatePhotographerProfileData,
   CreatePhotographerProfileResult,
+  PhotographerDashboardStats,
   PublicPhotographerProfile,
   TopPhotographerByEventCount,
 } from './photographer.interface';
+
+// An order is paid once it leaves PENDING_CONFIRMATION without being cancelled.
+const PAID_ORDER_STATUSES: OrderStatus[] = ['PROCESSING', 'DELIVERED'];
+const TOP_EVENT_LIMIT = 5;
 
 const PUBLIC_PROFILE_SELECT = {
   id: true,
@@ -148,8 +155,7 @@ export class PhotographerRepository {
     const grouped = await this.prisma.event.groupBy({
       by: ['photographerId'],
       where: {
-        isPublished: true,
-        deletedAt: null,
+        ...liveEventWhere(),
         ...(photographerIdFilter && {
           photographerId: { in: photographerIdFilter },
         }),
@@ -226,24 +232,132 @@ export class PhotographerRepository {
     });
   }
 
+  // Own-account overview. Orders and storage deliberately include inactive (soft-deleted)
+  // events: their orders are still revenue and their files still occupy storage.
+  async getDashboardStats(
+    photographerId: string,
+  ): Promise<PhotographerDashboardStats> {
+    const ownEvent = { photographerId };
+    const paidOrder = {
+      event: ownEvent,
+      status: { in: PAID_ORDER_STATUSES },
+    } satisfies Prisma.OrderWhereInput;
+
+    const [
+      totalEvents,
+      liveEvents,
+      draftEvents,
+      inactiveEvents,
+      photoAgg,
+      orderStatusGroups,
+      photosSold,
+      paidAgg,
+      pendingAgg,
+      commissionAgg,
+      topEventGroups,
+    ] = await Promise.all([
+      this.prisma.event.count({ where: { ...ownEvent, deletedAt: null } }),
+      this.prisma.event.count({
+        where: { ...ownEvent, ...liveEventWhere() },
+      }),
+      this.prisma.event.count({
+        where: { ...ownEvent, deletedAt: null, isPublished: false },
+      }),
+      this.prisma.event.count({
+        where: { ...ownEvent, deletedAt: { not: null } },
+      }),
+      this.prisma.photo.aggregate({
+        where: { event: ownEvent, status: 'UPLOADED', deletedAt: null },
+        _count: { _all: true },
+        _sum: { sizeBytes: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['status'],
+        where: { event: ownEvent },
+        _count: { _all: true },
+      }),
+      this.prisma.orderItem.count({ where: { order: paidOrder } }),
+      this.prisma.order.aggregate({
+        where: paidOrder,
+        _sum: { total: true },
+      }),
+      this.prisma.order.aggregate({
+        where: { event: ownEvent, status: 'PENDING_CONFIRMATION' },
+        _sum: { total: true },
+      }),
+      this.prisma.commissionCharge.aggregate({
+        where: {
+          payment: { status: 'PAID', order: { event: ownEvent } },
+        },
+        _sum: { commissionAmount: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['eventId'],
+        where: paidOrder,
+        _count: { _all: true },
+        _sum: { total: true },
+        orderBy: { _sum: { total: 'desc' } },
+        take: TOP_EVENT_LIMIT,
+      }),
+    ]);
+
+    const topEventTitles = await this.prisma.event.findMany({
+      where: { id: { in: topEventGroups.map((group) => group.eventId) } },
+      select: { id: true, title: true },
+    });
+    const titleByEventId = new Map(
+      topEventTitles.map((event) => [event.id, event.title]),
+    );
+
+    const ordersByStatus = {
+      PENDING_CONFIRMATION: 0,
+      PROCESSING: 0,
+      DELIVERED: 0,
+      CANCELLED: 0,
+    };
+    for (const group of orderStatusGroups) {
+      ordersByStatus[group.status] = group._count._all;
+    }
+
+    return {
+      totalEvents,
+      liveEvents,
+      draftEvents,
+      inactiveEvents,
+      photoCount: photoAgg._count._all,
+      storageBytes: photoAgg._sum.sizeBytes ?? 0,
+      ordersByStatus,
+      photosSold,
+      grossRevenue: Number(paidAgg._sum.total ?? 0),
+      pendingRevenue: Number(pendingAgg._sum.total ?? 0),
+      totalCommission: Number(commissionAgg._sum.commissionAmount ?? 0),
+      topEvents: topEventGroups.map((group) => ({
+        eventId: group.eventId,
+        title: titleByEventId.get(group.eventId) ?? '',
+        orderCount: group._count._all,
+        revenue: Number(group._sum.total ?? 0),
+      })),
+    };
+  }
+
   private async buildPublicProfile(
     profile: PublicProfileRow,
   ): Promise<PublicPhotographerProfile> {
     const id = profile.id;
     const [eventCount, photoCount, topCategoryGroups] = await Promise.all([
       this.prisma.event.count({
-        where: { photographerId: id, isPublished: true, deletedAt: null },
+        where: { photographerId: id, ...liveEventWhere() },
       }),
       this.prisma.photo.count({
         where: {
           status: 'UPLOADED',
           deletedAt: null,
-          event: { photographerId: id, isPublished: true, deletedAt: null },
+          event: { photographerId: id, ...liveEventWhere() },
         },
       }),
       this.prisma.event.groupBy({
         by: ['category'],
-        where: { photographerId: id, isPublished: true, deletedAt: null },
+        where: { photographerId: id, ...liveEventWhere() },
         _count: { id: true },
         orderBy: { _count: { id: 'desc' } },
         take: 1,

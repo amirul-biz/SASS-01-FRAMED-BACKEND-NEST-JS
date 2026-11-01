@@ -20,6 +20,8 @@ import { CashPaymentPlatformModule } from './merchant-payment-platform/cash-paym
 import { ToyyibPayPaymentConfigModule } from './merchant-payment-platform/toyyibpay-payment-platform/toyyibpay-payment-config/toyyibpay-payment-config.module';
 import { MerchantOrderPaymentModule } from './merchant-order-payment/merchant-order-payment.module';
 import { CashOrderPaymentModule } from './merchant-order-payment/cash-order-payment/cash-order-payment.module';
+import { CommissionModule } from './commission/commission-config/commission.module';
+import { SystemPaymentPlatformModule } from './system-payment-platform/system-payment-platform.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { CashOrderPaymentModule } from './merchant-order-payment/cash-order-paym
     ToyyibPayPaymentConfigModule,
     MerchantOrderPaymentModule,
     CashOrderPaymentModule,
+    CommissionModule,
+    SystemPaymentPlatformModule,
   ],
   controllers: [AppController],
   providers: [AppService],

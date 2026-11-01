@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -174,6 +174,14 @@ export class AdminOrdersQueryDto {
   @IsOptional()
   status?: OrderStatus;
 
+  @ApiPropertyOptional({
+    description: 'Only cash orders still unconfirmed after 3 days',
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  isCashAging?: boolean;
+
   @ApiPropertyOptional({ example: 1 })
   @Type(() => Number)
   @IsInt({ message: 'pageNumber must be an integer' })
@@ -211,6 +219,13 @@ export class AdminOrderDto {
   @ApiProperty() @IsString() status!: string;
   @ApiProperty() @Type(() => Number) @IsNumber() total!: number;
 
+  @ApiProperty({
+    description:
+      'Cash order unconfirmed for more than 3 days: a review queue, not proof of suppression',
+  })
+  @IsBoolean()
+  isCashAging!: boolean;
+
   @ApiProperty({ type: [AdminOrderItemDto] })
   @Type(() => AdminOrderItemDto)
   @ValidateNested({ each: true })
@@ -239,6 +254,19 @@ export class AdminDailyStatDto {
   @ApiProperty() @IsInt() eventsCreated!: number;
   @ApiProperty() @IsInt() photographersRegistered!: number;
   @ApiProperty() @IsInt() orders!: number;
+}
+
+export class AdminPhotographerStatsDto {
+  @ApiProperty() @IsInt() photoCount!: number;
+  @ApiProperty() @IsInt() storageBytes!: number;
+  @ApiProperty() @IsInt() eventCount!: number;
+  @ApiProperty() @IsInt() publishedEventCount!: number;
+  @ApiProperty() @IsInt() orderCount!: number;
+  @ApiProperty() @IsNumber() orderTotalValue!: number;
+}
+
+export class AdminPasswordResetLinkDto {
+  @ApiProperty() @IsString() resetLink!: string;
 }
 
 export class AdminStatsDto {

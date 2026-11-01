@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { OrderStatus } from '../../generated/prisma/enums';
+import { OrderStatus, PaymentProvider } from '../../generated/prisma/enums';
 import { PrismaService } from '../config/database/prisma.service';
 import { FirebaseService } from '../config/firebase/firebase.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
@@ -16,12 +16,16 @@ import type {
   AdminPaginatedEventsDto,
   AdminPaginatedOrdersDto,
   AdminPaginatedPhotographersDto,
+  AdminPasswordResetLinkDto,
   AdminPhotographerDto,
+  AdminPhotographerStatsDto,
   AdminRegisterPhotographerDto,
   AdminStatsDto,
 } from './admin.dto';
 
 const DAILY_SERIES_DAYS = 14;
+const CASH_AGING_DAYS = 3;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class AdminService {
@@ -138,6 +142,66 @@ export class AdminService {
     );
   }
 
+  async getPhotographerStats(id: string): Promise<AdminPhotographerStatsDto> {
+    const photoWhere = {
+      event: { photographerId: id, deletedAt: null },
+      status: 'UPLOADED' as const,
+      deletedAt: null,
+    };
+
+    const [eventCount, publishedEventCount, photoAgg, orderAgg] =
+      await Promise.all([
+        this.prisma.event.count({
+          where: { photographerId: id, deletedAt: null },
+        }),
+        this.prisma.event.count({
+          where: { photographerId: id, deletedAt: null, isPublished: true },
+        }),
+        this.prisma.photo.aggregate({
+          where: photoWhere,
+          _count: { _all: true },
+          _sum: { sizeBytes: true },
+        }),
+        this.prisma.order.aggregate({
+          where: {
+            event: { photographerId: id },
+            status: { not: 'CANCELLED' },
+          },
+          _count: { _all: true },
+          _sum: { total: true },
+        }),
+      ]);
+
+    return {
+      photoCount: photoAgg._count._all,
+      storageBytes: photoAgg._sum.sizeBytes ?? 0,
+      eventCount,
+      publishedEventCount,
+      orderCount: orderAgg._count._all,
+      orderTotalValue: Number(orderAgg._sum.total ?? 0),
+    };
+  }
+
+  async resetPhotographerPassword(
+    id: string,
+  ): Promise<AdminPasswordResetLinkDto> {
+    const profile = await this.prisma.photographerProfile.findUnique({
+      where: { id },
+      select: {
+        userPlatform: { select: { user: { select: { email: true } } } },
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Photographer not found');
+    }
+
+    const resetLink = await this.firebaseService.generatePasswordResetLink(
+      profile.userPlatform.user.email,
+    );
+    return { resetLink };
+  }
+
   async getStats(): Promise<AdminStatsDto> {
     const since = new Date();
     since.setUTCHours(0, 0, 0, 0);
@@ -173,25 +237,25 @@ export class AdminService {
       this.countDaily(
         `SELECT date_trunc('day', uploaded_at)::date AS day, COUNT(*)::int AS count
          FROM photos
-         WHERE status = 'UPLOADED' AND deleted_at IS NULL AND uploaded_at >= ${since.toISOString()}
+         WHERE status = 'UPLOADED' AND deleted_at IS NULL AND uploaded_at >= '${since.toISOString()}'
          GROUP BY day`,
       ),
       this.countDaily(
         `SELECT date_trunc('day', created_at)::date AS day, COUNT(*)::int AS count
          FROM events
-         WHERE deleted_at IS NULL AND created_at >= ${since.toISOString()}
+         WHERE deleted_at IS NULL AND created_at >= '${since.toISOString()}'
          GROUP BY day`,
       ),
       this.countDaily(
         `SELECT date_trunc('day', pp.created_at)::date AS day, COUNT(*)::int AS count
          FROM photographer_profiles pp
-         WHERE pp.created_at >= ${since.toISOString()}
+         WHERE pp.created_at >= '${since.toISOString()}'
          GROUP BY day`,
       ),
       this.countDaily(
         `SELECT date_trunc('day', created_at)::date AS day, COUNT(*)::int AS count
          FROM orders
-         WHERE status != 'CANCELLED' AND created_at >= ${since.toISOString()}
+         WHERE status != 'CANCELLED' AND created_at >= '${since.toISOString()}'
          GROUP BY day`,
       ),
       this.safeListFirebaseUsers(),
@@ -303,12 +367,19 @@ export class AdminService {
   async listOrders(query: {
     eventId?: string;
     status?: OrderStatus;
+    isCashAging?: boolean;
     pageNumber: number;
     pageSize: number;
   }): Promise<AdminPaginatedOrdersDto> {
+    const cashAgingCutoff = new Date(Date.now() - CASH_AGING_DAYS * MS_PER_DAY);
     const where = {
       ...(query.eventId && { eventId: query.eventId }),
       ...(query.status && { status: query.status }),
+      ...(query.isCashAging && {
+        status: OrderStatus.PENDING_CONFIRMATION,
+        createdAt: { lt: cashAgingCutoff },
+        payments: { some: { provider: PaymentProvider.CASH } },
+      }),
     };
 
     const [orders, totalItemCount] = await Promise.all([
@@ -323,6 +394,11 @@ export class AdminService {
           total: true,
           createdAt: true,
           event: { select: { title: true } },
+          payments: {
+            where: { provider: PaymentProvider.CASH },
+            select: { id: true },
+            take: 1,
+          },
           items: {
             select: {
               id: true,
@@ -348,6 +424,10 @@ export class AdminService {
       status: order.status,
       total: Number(order.total),
       createdAt: order.createdAt,
+      isCashAging:
+        order.status === OrderStatus.PENDING_CONFIRMATION &&
+        order.createdAt < cashAgingCutoff &&
+        order.payments.length > 0,
       items: order.items.map((item) => ({
         id: item.id,
         photoName: item.photo.originalName,

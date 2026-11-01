@@ -1,4 +1,5 @@
 import { InternalServerErrorException } from '@nestjs/common';
+import { PaymentProvider } from '../../../generated/prisma/enums';
 import { CommissionCalculatorRegistry } from './commission-calculator.registry';
 import { CommissionService } from './commission.service';
 import { AmountPerTransactionCommissionCalculator } from '../types/amount-per-transaction/amount-per-transaction.calculator';
@@ -16,6 +17,7 @@ describe('CommissionService.getCommissionForPayment', () => {
   const order = { amountPaid: 30, itemPrices: [20, 20, 20] };
   const params = {
     paymentPlatformOptionId: 'option-1',
+    provider: PaymentProvider.CASH,
     isImposeCommission: true,
     order,
   };
@@ -93,6 +95,17 @@ describe('CommissionService.getCommissionForPayment', () => {
       commissionPlanId: 'default',
       commissionAmount: 1.5,
     });
+  });
+
+  it("looks the default plan up for the payment's own provider", async () => {
+    await service.getCommissionForPayment({
+      ...params,
+      provider: PaymentProvider.TOYYIBPAY,
+    });
+
+    expect(repository.getDefaultActivePlan).toHaveBeenCalledWith(
+      PaymentProvider.TOYYIBPAY,
+    );
   });
 
   it('hands the plan to the calculator for its own type', async () => {

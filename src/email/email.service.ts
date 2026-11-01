@@ -15,7 +15,11 @@ export interface SendPaymentFailedEmailParams {
   orderId: string;
   email: string;
   amount: number;
+  // The event photographer's contactNo ?? phone; null/empty falls back to the platform number.
+  photographerContactNo: string | null;
 }
+
+const DEFAULT_PLATFORM_CONTACT_WHATSAPP = '60104459106';
 
 @Injectable()
 export class EmailService {
@@ -54,14 +58,19 @@ export class EmailService {
   async sendPaymentFailedEmail(
     params: SendPaymentFailedEmailParams,
   ): Promise<void> {
-    const retryLink = `${this.getClientUrl()}/cart`;
+    const platformNumber = this.getPlatformContactNumber();
+    const message = `Hi, my payment for order #${params.orderId.slice(0, 8).toUpperCase()} failed and I need help.`;
 
     await this.sendOrLog({
       email: params.email,
       subject: 'Your payment could not be completed',
       htmlbody: getPaymentFailedEmailHtml({
         amount: params.amount,
-        retryLink,
+        contactUsLink: this.getWhatsAppLink(platformNumber, message),
+        contactPhotographerLink: this.getWhatsAppLink(
+          params.photographerContactNo || platformNumber,
+          message,
+        ),
       }),
       logContext: `payment-failed email for order ${params.orderId}`,
     });
@@ -93,6 +102,24 @@ export class EmailService {
         `Failed to send ${params.logContext}: ${(error as Error).message}`,
       );
     }
+  }
+
+  private getPlatformContactNumber(): string {
+    return (
+      process.env.PLATFORM_CONTACT_WHATSAPP ?? DEFAULT_PLATFORM_CONTACT_WHATSAPP
+    );
+  }
+
+  // Mirrors the frontend's toWhatsAppNumber (shared/whatsapp-number.util.ts): photographers enter
+  // local Malaysian numbers (leading 0, no country code) but wa.me needs the full international
+  // number.
+  // ponytail: assumes MY, same as the frontend util; add a country field if that changes.
+  private getWhatsAppLink(rawNumber: string, message: string): string {
+    const digits = rawNumber.replace(/\D/g, '');
+    const international = digits.startsWith('60')
+      ? digits
+      : `60${digits.replace(/^0+/, '')}`;
+    return `https://wa.me/${international}?text=${encodeURIComponent(message)}`;
   }
 
   private getClientUrl(): string {

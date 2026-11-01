@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -43,6 +44,12 @@ export class CreateVoucherDto {
   @IsNotEmpty({ message: 'Name is required' })
   name!: string;
 
+  @ApiPropertyOptional({ example: 'Valid for one order only' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
   @ApiProperty({ example: 'percent-tier', enum: WIRE_VOUCHER_DISCOUNT_TYPES })
   @IsIn(WIRE_VOUCHER_DISCOUNT_TYPES)
   discountType!: WireVoucherDiscountType;
@@ -60,6 +67,12 @@ export class UpdateVoucherDto {
   @IsString()
   @IsNotEmpty({ message: 'Name is required' })
   name?: string;
+
+  @ApiPropertyOptional({ example: 'Valid for one order only' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
 
   @ApiPropertyOptional({
     example: 'percent-tier',
@@ -81,6 +94,7 @@ export class VoucherResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() photographerId!: string;
   @ApiProperty() name!: string;
+  @ApiPropertyOptional({ nullable: true }) description!: string | null;
   @ApiProperty({ enum: WIRE_VOUCHER_DISCOUNT_TYPES })
   discountType!: WireVoucherDiscountType;
   @ApiProperty({ type: [VoucherConditionDto] })

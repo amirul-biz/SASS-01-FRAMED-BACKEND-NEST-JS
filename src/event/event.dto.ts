@@ -50,6 +50,15 @@ export class CreateEventDto {
   eventEndDate!: string;
 
   @ApiPropertyOptional({
+    example: '2026-10-12T15:59:59.000Z',
+    description: 'Event is automatically unpublished after this moment',
+    nullable: true,
+  })
+  @IsDateString({}, { message: 'Publish until must be a valid date' })
+  @IsOptional()
+  publishUntil?: string | null;
+
+  @ApiPropertyOptional({
     example: 'events/abc/xyz-cover.jpg',
   })
   @IsString({ message: 'Cover photo key must be a string' })
@@ -97,6 +106,15 @@ export class UpdateEventDto {
   eventEndDate?: string;
 
   @ApiPropertyOptional({
+    example: '2026-10-12T15:59:59.000Z',
+    description: 'Send null to clear',
+    nullable: true,
+  })
+  @IsDateString({}, { message: 'Publish until must be a valid date' })
+  @IsOptional()
+  publishUntil?: string | null;
+
+  @ApiPropertyOptional({
     example: 'events/abc/xyz-cover.jpg',
   })
   @IsString({ message: 'Cover photo key must be a string' })
@@ -132,6 +150,11 @@ export class EventListQueryDto {
   })
   @IsOptional()
   pageSize: number = EVENT_PAGINATION.DEFAULT_PAGE_SIZE;
+
+  @ApiPropertyOptional({ enum: ['active', 'inactive'], default: 'active' })
+  @IsIn(['active', 'inactive'])
+  @IsOptional()
+  status: 'active' | 'inactive' = 'active';
 }
 
 export class EventResponseDto {
@@ -161,6 +184,18 @@ export class EventResponseDto {
   @IsDate()
   @IsOptional()
   publishedAt!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Type(() => Date)
+  @IsDate()
+  @IsOptional()
+  publishUntil!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Type(() => Date)
+  @IsDate()
+  @IsOptional()
+  deletedAt!: Date | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsString()

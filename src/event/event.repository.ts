@@ -23,6 +23,15 @@ const TO_WIRE_VOUCHER_TYPE: Record<
   [VoucherDiscountType.PERCENT_TIER]: 'percent-tier',
 };
 
+// Publicly visible event. publishUntil is checked here so expiry is instant; the
+// unpublish-expired cron only syncs isPublished for Studio/admin views.
+export const liveEventWhere = () =>
+  ({
+    isPublished: true,
+    deletedAt: null,
+    OR: [{ publishUntil: null }, { publishUntil: { gt: new Date() } }],
+  }) satisfies Prisma.EventWhereInput;
+
 const PUBLISHED_EVENT_CARD_SELECT = {
   id: true,
   title: true,
@@ -127,6 +136,7 @@ function toPublishedEventDetail(
       vouchers: pricingBundle.vouchers.map(({ voucher }) => ({
         id: voucher.id,
         name: voucher.name,
+        description: voucher.description,
         discountType: TO_WIRE_VOUCHER_TYPE[voucher.discountType],
         conditions: voucher.conditions as unknown as VoucherConditionDto[],
       })),
@@ -149,6 +159,8 @@ function toEventResponse(
     eventEndDate: event.eventEndDate,
     isPublished: event.isPublished,
     publishedAt: event.publishedAt,
+    publishUntil: event.publishUntil,
+    deletedAt: event.deletedAt,
     coverPhotoUrl: event.coverPhotoKey
       ? publicStorageService.buildPublicUrl(event.coverPhotoKey)
       : null,
@@ -178,6 +190,7 @@ export class EventRepository {
         location: data.location,
         eventStartDate: new Date(data.eventStartDate),
         eventEndDate: new Date(data.eventEndDate),
+        publishUntil: data.publishUntil ? new Date(data.publishUntil) : null,
         coverPhotoKey: data.coverPhotoKey,
         ...(data.pricingBundleIds && {
           pricingBundles: {
@@ -194,14 +207,24 @@ export class EventRepository {
 
   async getManyByPhotographer(
     photographerId: string,
-    { skip, take }: { skip: number; take: number },
+    {
+      skip,
+      take,
+      status,
+    }: { skip: number; take: number; status: 'active' | 'inactive' },
   ): Promise<PaginatedEvents<EventResponseDto>> {
-    const where = { photographerId, deletedAt: null };
+    const where = {
+      photographerId,
+      deletedAt: status === 'inactive' ? { not: null } : null,
+    };
 
     const [items, totalItemCount] = await this.prisma.$transaction([
       this.prisma.event.findMany({
         where,
-        orderBy: { eventStartDate: 'desc' },
+        orderBy:
+          status === 'inactive'
+            ? { deletedAt: 'desc' }
+            : { eventStartDate: 'desc' },
         skip,
         take,
         include: EVENT_WITH_BUNDLES_INCLUDE,
@@ -283,6 +306,9 @@ export class EventRepository {
       ...(data.eventEndDate !== undefined && {
         eventEndDate: new Date(data.eventEndDate),
       }),
+      ...(data.publishUntil !== undefined && {
+        publishUntil: data.publishUntil ? new Date(data.publishUntil) : null,
+      }),
       ...(data.coverPhotoKey !== undefined && {
         coverPhotoKey: data.coverPhotoKey,
       }),
@@ -295,7 +321,7 @@ export class EventRepository {
     id: string,
   ): Promise<PublishedEventDetailRaw | null> {
     const event = await this.prisma.event.findFirst({
-      where: { id, isPublished: true, deletedAt: null },
+      where: { id, ...liveEventWhere() },
       select: PUBLISHED_EVENT_DETAIL_SELECT,
     });
     return event
@@ -307,7 +333,7 @@ export class EventRepository {
   // event is published, not load its bundles/vouchers/album-cover join.
   async existsPublished(id: string): Promise<boolean> {
     const event = await this.prisma.event.findFirst({
-      where: { id, isPublished: true, deletedAt: null },
+      where: { id, ...liveEventWhere() },
       select: { id: true },
     });
     return event !== null;
@@ -316,13 +342,21 @@ export class EventRepository {
   async softDelete(id: string): Promise<void> {
     await this.prisma.event.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), isPublished: false },
     });
+  }
+
+  async unpublishExpired(now: Date): Promise<number> {
+    const { count } = await this.prisma.event.updateMany({
+      where: { isPublished: true, deletedAt: null, publishUntil: { lte: now } },
+      data: { isPublished: false },
+    });
+    return count;
   }
 
   async getLatestPublished(limit: number): Promise<LatestPublishedEvent[]> {
     const events = await this.prisma.event.findMany({
-      where: { isPublished: true, deletedAt: null },
+      where: liveEventWhere(),
       orderBy: { publishedAt: 'desc' },
       take: limit,
       select: PUBLISHED_EVENT_CARD_SELECT,
@@ -342,8 +376,7 @@ export class EventRepository {
     take: number;
   }): Promise<PaginatedEvents<LatestPublishedEvent>> {
     const where = {
-      isPublished: true,
-      deletedAt: null,
+      ...liveEventWhere(),
       ...(filters.search && {
         title: { contains: filters.search, mode: 'insensitive' as const },
       }),

@@ -21,7 +21,9 @@ import {
   AdminPaginatedEventsDto,
   AdminPaginatedOrdersDto,
   AdminPaginatedPhotographersDto,
+  AdminPasswordResetLinkDto,
   AdminPhotographerListQueryDto,
+  AdminPhotographerStatsDto,
   AdminRegisterPhotographerDto,
   AdminSetPhotographerStatusDto,
   AdminStatsDto,
@@ -61,6 +63,16 @@ export class AdminController {
   ): Promise<{ success: boolean }> {
     await this.adminService.setPhotographerStatus(id, dto.isActive);
     return { success: true };
+  }
+
+  @Get('photographers/:id/stats')
+  getPhotographerStats(@Param('id') id: string): Promise<AdminPhotographerStatsDto> {
+    return this.adminService.getPhotographerStats(id);
+  }
+
+  @Post('photographers/:id/reset-password')
+  resetPhotographerPassword(@Param('id') id: string): Promise<AdminPasswordResetLinkDto> {
+    return this.adminService.resetPhotographerPassword(id);
   }
 
   @Get('stats')

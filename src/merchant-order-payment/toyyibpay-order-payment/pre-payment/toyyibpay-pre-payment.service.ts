@@ -10,6 +10,7 @@ import {
 import { ToyyibPayPaymentConfigService } from '../../../merchant-payment-platform/toyyibpay-payment-platform/toyyibpay-payment-config/toyyibpay-payment-config.service';
 import { CommissionService } from '../../../commission/commission-config/commission.service';
 import type { CommissionCalculation } from '../../../commission/commission-config/commission.interface';
+import { PaymentProvider } from '../../../../generated/prisma/enums';
 import { ToyyibPayPrePaymentRepository } from './toyyibpay-pre-payment.repository';
 
 export interface CreateToyyibPayBillForPaymentParams {
@@ -112,6 +113,7 @@ export class ToyyibPayPrePaymentService {
 
     const commission = await this.commissionService.getCommissionForPayment({
       paymentPlatformOptionId: params.paymentPlatformOptionId,
+      provider: PaymentProvider.TOYYIBPAY,
       isImposeCommission: params.isImposeCommission,
       order: { amountPaid: params.amount, itemPrices: params.itemPrices },
     });

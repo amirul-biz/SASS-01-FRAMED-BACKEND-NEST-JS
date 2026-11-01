@@ -62,6 +62,7 @@ export class EventService {
       await this.eventRepository.getManyByPhotographer(photographerId, {
         skip,
         take: query.pageSize,
+        status: query.status,
       });
 
     return {
@@ -95,6 +96,18 @@ export class EventService {
 
     const justPublished = dto.isPublished === true && !existing.isPublished;
 
+    const willBePublished = dto.isPublished ?? existing.isPublished;
+    const publishUntil =
+      dto.publishUntil !== undefined ? dto.publishUntil : existing.publishUntil;
+    if (
+      willBePublished &&
+      publishUntil &&
+      (justPublished || dto.publishUntil !== undefined) &&
+      new Date(publishUntil) <= new Date()
+    ) {
+      throw new BadRequestException('Publish until date has already passed');
+    }
+
     return await this.runWithDateRangeCheck(() =>
       this.eventRepository.update(id, {
         ...dto,
@@ -108,6 +121,10 @@ export class EventService {
       await this.photographerService.getOwnPhotographerProfileId(user);
     await this.getOwnedEventOrThrow(id, photographerId);
     await this.eventRepository.softDelete(id);
+  }
+
+  async unpublishExpiredEvents(): Promise<{ unpublished: number }> {
+    return { unpublished: await this.eventRepository.unpublishExpired(new Date()) };
   }
 
   async presignCoverPhotoUpload(

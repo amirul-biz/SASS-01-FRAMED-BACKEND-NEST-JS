@@ -15,6 +15,9 @@ describe('ToyyibPayPaymentFinalizationService', () => {
       status: 'PENDING_CONFIRMATION',
       email: 'customer@example.com',
       items: [{ price: '30.00' }],
+      event: {
+        photographerProfile: { contactNo: '0123456789', phone: '0987654321' },
+      },
     },
   };
 
@@ -63,6 +66,7 @@ describe('ToyyibPayPaymentFinalizationService', () => {
 
     expect(commissionService.getCommissionForPayment).toHaveBeenCalledWith({
       paymentPlatformOptionId: 'option-1',
+      provider: 'TOYYIBPAY',
       isImposeCommission: true,
       order: { amountPaid: 30, itemPrices: [30] },
     });
@@ -102,7 +106,24 @@ describe('ToyyibPayPaymentFinalizationService', () => {
       orderId: 'order-1',
       email: 'customer@example.com',
       amount: 30,
+      photographerContactNo: '0123456789',
     });
+  });
+
+  it('finalizeAsFailed falls back to the photographer phone when contactNo is empty', async () => {
+    const withoutContactNo = {
+      ...payment,
+      order: {
+        ...payment.order,
+        event: { photographerProfile: { contactNo: null, phone: '0987654321' } },
+      },
+    };
+
+    await service.finalizeAsFailed(withoutContactNo, 'MANUAL');
+
+    expect(emailService.sendPaymentFailedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ photographerContactNo: '0987654321' }),
+    );
   });
 
   it('does not email when the failed transition was already handled', async () => {

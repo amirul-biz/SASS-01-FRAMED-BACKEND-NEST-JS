@@ -74,6 +74,7 @@ export class UpdatePricingBundleDto {
 export class VoucherSummaryDto {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
+  @ApiProperty({ nullable: true }) description!: string | null;
   @ApiProperty({ enum: WIRE_VOUCHER_DISCOUNT_TYPES })
   discountType!: WireVoucherDiscountType;
   @ApiProperty({ type: [VoucherConditionDto] })

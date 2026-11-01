@@ -568,4 +568,14 @@ describe('OrderService.resendDeliveryEmail', () => {
       30,
     );
   });
+
+  it('sends to the override email instead of the order email when given', async () => {
+    await service.resendDeliveryEmail({} as any, 'order-1', 'new@example.com');
+
+    expect(orderDeliveryRepository.resendDeliveryEmail).toHaveBeenCalledWith(
+      'order-1',
+      'new@example.com',
+      30,
+    );
+  });
 });

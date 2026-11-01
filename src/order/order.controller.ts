@@ -22,6 +22,7 @@ import {
   OrderListQueryDto,
   OrderResponseDto,
   PaginatedOrderListResponseDto,
+  ResendDeliveryEmailDto,
 } from './order.dto';
 import { OrderService } from './order.service';
 
@@ -77,8 +78,9 @@ export class OrderController {
   async resendDeliveryEmail(
     @CurrentUser() user: AuthenticatedUser,
     @Param('orderId') orderId: string,
+    @Body() dto: ResendDeliveryEmailDto,
   ): Promise<{ resent: true }> {
-    await this.orderService.resendDeliveryEmail(user, orderId);
+    await this.orderService.resendDeliveryEmail(user, orderId, dto.email);
     return { resent: true };
   }
 }

@@ -25,6 +25,7 @@ export class VouchersRepository {
   create(data: {
     photographerId: string;
     name: string;
+    description: string | null;
     discountType: VoucherDiscountType;
     conditions: Prisma.InputJsonValue;
   }) {
@@ -35,6 +36,7 @@ export class VouchersRepository {
     id: string,
     data: Partial<{
       name: string;
+      description: string | null;
       discountType: VoucherDiscountType;
       conditions: Prisma.InputJsonValue;
     }>,

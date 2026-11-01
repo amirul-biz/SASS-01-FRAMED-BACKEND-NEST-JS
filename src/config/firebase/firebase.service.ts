@@ -98,5 +98,19 @@ export class FirebaseService {
     }
 
     await getAuth().updateUser(uid, { disabled });
+    if (disabled) {
+      // Stops the disabled user from minting new ID tokens; already-issued ones expire within ~1h.
+      await getAuth().revokeRefreshTokens(uid);
+    }
+  }
+
+  async generatePasswordResetLink(email: string): Promise<string> {
+    if (!getApps().length) {
+      throw new Error(
+        'Firebase is not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.',
+      );
+    }
+
+    return await getAuth().generatePasswordResetLink(email);
   }
 }

@@ -226,3 +226,38 @@ export class RegisterPhotographerOutputDto {
   @Type(() => RegisterPhotographerDataDto)
   data!: RegisterPhotographerDataDto;
 }
+
+export class PhotographerDashboardTopEventDto {
+  @ApiProperty() @IsString() eventId!: string;
+  @ApiProperty() @IsString() title!: string;
+  @ApiProperty() @IsNumber() orderCount!: number;
+  @ApiProperty() @IsNumber() revenue!: number;
+}
+
+export class PhotographerDashboardResponseDto {
+  @ApiProperty() @IsNumber() totalEvents!: number;
+  @ApiProperty() @IsNumber() liveEvents!: number;
+  @ApiProperty() @IsNumber() draftEvents!: number;
+  @ApiProperty() @IsNumber() inactiveEvents!: number;
+  @ApiProperty() @IsNumber() photoCount!: number;
+  @ApiProperty() @IsNumber() storageBytes!: number;
+
+  @ApiProperty({
+    example: {
+      PENDING_CONFIRMATION: 1,
+      PROCESSING: 2,
+      DELIVERED: 3,
+      CANCELLED: 0,
+    },
+  })
+  ordersByStatus!: Record<string, number>;
+
+  @ApiProperty() @IsNumber() photosSold!: number;
+  @ApiProperty() @IsNumber() grossRevenue!: number;
+  @ApiProperty() @IsNumber() pendingRevenue!: number;
+  @ApiProperty() @IsNumber() totalCommission!: number;
+  @ApiProperty() @IsNumber() netProfit!: number;
+
+  @ApiProperty({ type: [PhotographerDashboardTopEventDto] })
+  topEvents!: PhotographerDashboardTopEventDto[];
+}

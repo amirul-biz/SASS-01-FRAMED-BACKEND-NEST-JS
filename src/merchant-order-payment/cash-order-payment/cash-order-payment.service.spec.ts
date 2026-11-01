@@ -40,16 +40,21 @@ describe('CashOrderPaymentService.markCashPaymentAsPaid', () => {
     },
     order: {
       status: 'PENDING_CONFIRMATION',
+      email: 'buyer@test.com',
       items: [{ price: '20' }, { price: '10' }],
     },
     ...overrides,
   });
 
   let commissionService: { getCommissionForPayment: jest.Mock };
+  let emailService: { sendPhotosDeliveredEmail: jest.Mock };
 
   beforeEach(() => {
     commissionService = {
       getCommissionForPayment: jest.fn().mockResolvedValue(null),
+    };
+    emailService = {
+      sendPhotosDeliveredEmail: jest.fn().mockResolvedValue(undefined),
     };
     merchantOrderPaymentRepository = {
       getPaymentForMarkingById: jest.fn().mockResolvedValue(buildPayment()),
@@ -68,12 +73,14 @@ describe('CashOrderPaymentService.markCashPaymentAsPaid', () => {
     };
     const merchantPaymentPlatformService = new MerchantPaymentPlatformService(
       {} as any,
+      {} as any,
     );
     service = new CashOrderPaymentService(
       repository as any,
       merchantOrderPaymentRepository as any,
       merchantPaymentPlatformService,
       commissionService as any,
+      emailService as any,
     );
   });
 
@@ -89,6 +96,7 @@ describe('CashOrderPaymentService.markCashPaymentAsPaid', () => {
 
       expect(commissionService.getCommissionForPayment).toHaveBeenCalledWith({
         paymentPlatformOptionId: 'option-1',
+        provider: 'CASH',
         isImposeCommission: true,
         order: { amountPaid: 12, itemPrices: [20, 10] },
       });
@@ -139,6 +147,35 @@ describe('CashOrderPaymentService.markCashPaymentAsPaid', () => {
       status: 'PAID',
       amount: 12,
       orderStatus: 'DELIVERED',
+    });
+  });
+
+  describe('delivery email', () => {
+    it('emails the buyer once the payment is marked as paid', async () => {
+      await service.markCashPaymentAsPaid(owner, 'pay-1', {});
+
+      expect(emailService.sendPhotosDeliveredEmail).toHaveBeenCalledTimes(1);
+      expect(emailService.sendPhotosDeliveredEmail).toHaveBeenCalledWith({
+        orderId: 'order-1',
+        email: 'buyer@test.com',
+        amount: 12,
+      });
+    });
+
+    it('sends no email when a concurrent request wins the race', async () => {
+      repository.markPaymentAsPaid.mockResolvedValue(null);
+
+      await expect(
+        service.markCashPaymentAsPaid(owner, 'pay-1', {}),
+      ).rejects.toThrow(ConflictException);
+      expect(emailService.sendPhotosDeliveredEmail).not.toHaveBeenCalled();
+    });
+
+    it('sends no email for a request that is rejected', async () => {
+      await expect(
+        service.markCashPaymentAsPaid(stranger, 'pay-1', {}),
+      ).rejects.toThrow(ForbiddenException);
+      expect(emailService.sendPhotosDeliveredEmail).not.toHaveBeenCalled();
     });
   });
 

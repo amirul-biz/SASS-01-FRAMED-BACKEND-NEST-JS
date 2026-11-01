@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../config/database/prisma.module';
+import { CommissionAdminController } from '../commission-admin/commission-admin.controller';
+import { CommissionAdminRepository } from '../commission-admin/commission-admin.repository';
+import { CommissionAdminService } from '../commission-admin/commission-admin.service';
 import { CommissionCalculatorRegistry } from './commission-calculator.registry';
 import { CommissionRepository } from './commission.repository';
 import { CommissionService } from './commission.service';
@@ -10,9 +13,12 @@ import { PercentagePerUnitCommissionCalculator } from '../types/percentage-per-u
 
 @Module({
   imports: [PrismaModule],
+  controllers: [CommissionAdminController],
   providers: [
     CommissionService,
     CommissionRepository,
+    CommissionAdminService,
+    CommissionAdminRepository,
     CommissionCalculatorRegistry,
     PercentagePerTransactionCommissionCalculator,
     AmountPerTransactionCommissionCalculator,

@@ -21,6 +21,7 @@ interface ToyyibPayPaymentConfigOptionFields {
   encryptedSecretKey: string;
   chargeFpxToCustomer?: boolean;
   chargeToPrepaid?: boolean;
+  verifiedAt?: Date;
 }
 
 @Injectable()
@@ -65,6 +66,7 @@ export class ToyyibPayPaymentConfigRepository {
               secretKey: fields.encryptedSecretKey,
               chargeFpxToCustomer: fields.chargeFpxToCustomer ?? false,
               chargeToPrepaid: fields.chargeToPrepaid ?? false,
+              verifiedAt: fields.verifiedAt,
             },
           },
         },
@@ -110,6 +112,7 @@ export class ToyyibPayPaymentConfigRepository {
     const hasEncryptedSecretKey = fields.encryptedSecretKey !== undefined;
     const hasChargeFpxToCustomer = fields.chargeFpxToCustomer !== undefined;
     const hasChargeToPrepaid = fields.chargeToPrepaid !== undefined;
+    const hasVerifiedAt = fields.verifiedAt !== undefined;
 
     return {
       ...(hasCategoryCode && { categoryCode: fields.categoryCode }),
@@ -118,6 +121,7 @@ export class ToyyibPayPaymentConfigRepository {
         chargeFpxToCustomer: fields.chargeFpxToCustomer,
       }),
       ...(hasChargeToPrepaid && { chargeToPrepaid: fields.chargeToPrepaid }),
+      ...(hasVerifiedAt && { verifiedAt: fields.verifiedAt }),
     };
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/database/prisma.service';
 import type { Prisma } from '../../../generated/prisma/client';
+import type { PaymentProvider } from '../../../generated/prisma/enums';
 
 const COMMISSION_PLAN_INCLUDE = {
   percentageCommissionPerTransaction: true,
@@ -30,9 +31,18 @@ export class CommissionRepository {
     return isAssignedPlanActive ? assignedPlan : null;
   }
 
-  async getDefaultActivePlan(): Promise<CommissionPlanPayload | null> {
+  // A plan with provider = null applies to any provider, so it is the fallback; a default made
+  // for this exact provider wins over it.
+  async getDefaultActivePlan(
+    provider: PaymentProvider,
+  ): Promise<CommissionPlanPayload | null> {
     return await this.prisma.commissionPlan.findFirst({
-      where: { isDefault: true, isActive: true },
+      where: {
+        isDefault: true,
+        isActive: true,
+        OR: [{ provider }, { provider: null }],
+      },
+      orderBy: { provider: { sort: 'asc', nulls: 'last' } },
       include: COMMISSION_PLAN_INCLUDE,
     });
   }

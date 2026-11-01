@@ -12,8 +12,9 @@ import { PublicStorageService } from '../config/storage/public-storage.service';
 import { UserRole } from '../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../types/express';
 import { randomUUID } from 'crypto';
-import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
+import { sanitizeFileName } from '../common/utils/sanitize-file-name';
 import {
+  PhotographerDashboardResponseDto,
   PhotographerProfileResponseDto,
   PresignProfileImageUploadDto,
   PresignProfileImageUploadResponseDto,
@@ -159,6 +160,18 @@ export class PhotographerService {
     ).map(([, label]) => label);
 
     return { isComplete: missingFields.length === 0, missingFields };
+  }
+
+  async getMyDashboard(
+    user: AuthenticatedUser,
+  ): Promise<PhotographerDashboardResponseDto> {
+    const photographerId = await this.getOwnPhotographerProfileId(user);
+    const stats =
+      await this.photographerRepository.getDashboardStats(photographerId);
+
+    const netProfit =
+      Math.round((stats.grossRevenue - stats.totalCommission) * 100) / 100;
+    return { ...stats, netProfit };
   }
 
   async updateMyProfile(

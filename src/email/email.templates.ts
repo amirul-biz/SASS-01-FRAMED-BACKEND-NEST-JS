@@ -34,6 +34,15 @@ function getButtonHtml(label: string, href: string): string {
   `;
 }
 
+// Secondary action next to getButtonHtml's filled button — same size, brand-colored outline.
+function getOutlineButtonHtml(label: string, href: string): string {
+  return `
+    <a href="${href}" style="display:inline-block;color:${COLOR_BRAND};text-decoration:none;font-weight:600;font-size:14px;padding:10px 26px;border-radius:10px;border:2px solid ${COLOR_BRAND};">
+      ${label}
+    </a>
+  `;
+}
+
 function getLinkHtml(label: string, href: string): string {
   return `<a href="${href}" style="color:${COLOR_BRAND};text-decoration:underline;font-size:13px;">${label}</a>`;
 }
@@ -82,7 +91,8 @@ export function getPhotosDeliveredEmailHtml(params: {
 
 export function getPaymentFailedEmailHtml(params: {
   amount: number;
-  retryLink: string;
+  contactUsLink: string;
+  contactPhotographerLink: string;
 }): string {
   const formattedAmount = params.amount.toFixed(2);
   const body = `
@@ -90,9 +100,10 @@ export function getPaymentFailedEmailHtml(params: {
     <h1 style="margin:0 0 12px;font-size:21px;color:${COLOR_ON_BACKGROUND};">Your payment could not be completed</h1>
     <p style="margin:0 0 28px;font-size:14px;line-height:1.6;color:${COLOR_MUTED};">
       We couldn't process your payment of RM ${formattedAmount}. You have not been charged.
-      Please try checking out again.
+      Need help? Contact us or the photographer.
     </p>
-    <p style="margin:0;">${getButtonHtml('Try Again', params.retryLink)}</p>
+    <p style="margin:0 0 12px;">${getButtonHtml('Contact us', params.contactUsLink)}</p>
+    <p style="margin:0;">${getOutlineButtonHtml('Contact photographer', params.contactPhotographerLink)}</p>
   `;
   return wrapEmailLayout(body);
 }

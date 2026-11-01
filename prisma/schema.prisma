@@ -54,8 +54,9 @@ model UserPlatform {
   photographerProfile PhotographerProfile?
   adminProfile        AdminProfile?
 
-  paymentPlatformOptions MerchantPaymentPlatformOptions[]
-  recordedCashBills      MerchantCashPaymentPlatformBill[]
+  paymentPlatformOptions         MerchantPaymentPlatformOptions[]  @relation("MerchantPaymentPlatformOptionOwner")
+  reviewedPaymentPlatformOptions MerchantPaymentPlatformOptions[]  @relation("MerchantPaymentPlatformOptionReviewer")
+  recordedCashBills              MerchantCashPaymentPlatformBill[]
 
   @@unique([userId, role])
   @@index([userId], map: "idx_user_platforms_user")
@@ -94,6 +95,7 @@ model Event {
   eventEndDate        DateTime            @map("event_end_date") @db.Timestamptz(6)
   isPublished         Boolean             @default(false) @map("is_published")
   publishedAt         DateTime?           @map("published_at") @db.Timestamptz(6)
+  publishUntil        DateTime?           @map("publish_until") @db.Timestamptz(6)
   coverPhotoKey       String?             @map("cover_photo_key")
   deletedAt           DateTime?           @map("deleted_at") @db.Timestamptz(6)
   createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -174,6 +176,7 @@ model Voucher {
   id             String              @id @default(uuid())
   photographerId String              @map("photographer_id")
   name           String
+  description    String?
   discountType   VoucherDiscountType @map("discount_type")
   conditions     Json                @map("conditions")
   createdAt      DateTime            @default(now()) @map("created_at")
@@ -328,13 +331,18 @@ enum ToyyibPayChannel {
 model MerchantPaymentPlatformOptions {
   id                       String          @id @default(uuid())
   userPlatformId           String          @map("user_platform_id")
-  userPlatform             UserPlatform    @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
+  userPlatform             UserPlatform    @relation("MerchantPaymentPlatformOptionOwner", fields: [userPlatformId], references: [id], onDelete: Cascade)
   provider                 PaymentProvider
   isDefaultPaymentPlatform Boolean         @default(false) @map("is_default_payment_platform")
   approvalStatus           ApprovalStatus  @default(PENDING) @map("approval_status")
   isImposeCommission       Boolean         @default(true) @map("is_impose_commission")
   createdAt                DateTime        @default(now()) @map("created_at")
   updatedAt                DateTime        @updatedAt @map("updated_at")
+
+  // Who last approved/rejected this option, and when. Null until an admin reviews it.
+  approvalStatusUpdatedAt               DateTime?     @map("approval_status_updated_at")
+  approvalStatusUpdatedByUserPlatformId String?       @map("approval_status_updated_by_user_platform_id")
+  approvalStatusUpdatedByUserPlatform   UserPlatform? @relation("MerchantPaymentPlatformOptionReviewer", fields: [approvalStatusUpdatedByUserPlatformId], references: [id], onDelete: SetNull)
 
   toyyibPayPaymentPlatformOption MerchantToyyibPayPaymentPlatformOption?
   cashPaymentPlatformOption      MerchantCashPaymentPlatformOption?
@@ -354,6 +362,7 @@ model MerchantToyyibPayPaymentPlatformOption {
   secretKey               String                         @map("secret_key")
   chargeFpxToCustomer     Boolean                        @default(false) @map("charge_fpx_to_customer")
   chargeToPrepaid         Boolean                        @default(false) @map("charge_to_prepaid")
+  verifiedAt              DateTime?                      @map("verified_at")
   createdAt               DateTime                       @default(now()) @map("created_at")
   updatedAt               DateTime                       @updatedAt @map("updated_at")
 
@@ -452,16 +461,16 @@ model MerchantPaymentPlatformBill {
 }
 
 model MerchantToyyibPayPaymentPlatformBill {
-  id              String                      @id @default(uuid())
-  billId          String                      @unique @map("bill_id")
-  bill            MerchantPaymentPlatformBill @relation(fields: [billId], references: [id], onDelete: Cascade)
-  billCode        String                      @unique @map("bill_code")
-  apiVersion      String                      @default("v1") @map("api_version")
-  requestPayload  Json                        @map("request_payload")
-  responsePayload Json?                       @map("response_payload")
-  createdAt       DateTime                    @default(now()) @map("created_at")
-  splitRecipientUsername String? @map("split_recipient_username")
-  splitCommission        Json?   @map("split_commission")
+  id                     String                      @id @default(uuid())
+  billId                 String                      @unique @map("bill_id")
+  bill                   MerchantPaymentPlatformBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  billCode               String                      @unique @map("bill_code")
+  apiVersion             String                      @default("v1") @map("api_version")
+  requestPayload         Json                        @map("request_payload")
+  responsePayload        Json?                       @map("response_payload")
+  createdAt              DateTime                    @default(now()) @map("created_at")
+  splitRecipientUsername String?                     @map("split_recipient_username")
+  splitCommission        Json?                       @map("split_commission")
 
   @@map("merchant_toyyibpay_payment_platform_bills")
 }
@@ -499,6 +508,9 @@ model SystemToyyibPayPaymentPlatformAccount {
   systemPlatform   SystemPaymentPlatform @relation(fields: [systemPlatformId], references: [id], onDelete: Cascade)
   secretKey        String                @map("secret_key")
   splitRecipientId String                @map("split_recipient_id")
+  // Nullable so hand-seeded accounts stay valid; a category is what lets the key be verified.
+  categoryCode     String?               @map("category_code")
+  verifiedAt       DateTime?             @map("verified_at")
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
 
@@ -588,13 +600,16 @@ enum CommissionType {
 }
 
 model CommissionPlan {
-  id        String         @id @default(uuid())
+  id        String           @id @default(uuid())
   name      String
   type      CommissionType
-  isDefault Boolean        @default(false) @map("is_default")
-  isActive  Boolean        @default(true) @map("is_active")
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime       @updatedAt @map("updated_at")
+  // Null = applies to any provider. One default per provider, plus one provider-agnostic default
+  // (partial unique indexes in the migration — Prisma cannot express them).
+  provider  PaymentProvider?
+  isDefault Boolean          @default(false) @map("is_default")
+  isActive  Boolean          @default(true) @map("is_active")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
 
   percentageCommissionPerTransactionId String?                             @unique @map("percentage_commission_per_transaction_id")
   percentageCommissionPerTransaction   PercentageCommissionPerTransaction? @relation(fields: [percentageCommissionPerTransactionId], references: [id], onDelete: Restrict)

@@ -218,6 +218,7 @@ export class OrderService {
   async resendDeliveryEmail(
     user: AuthenticatedUser,
     orderId: string,
+    emailOverride?: string,
   ): Promise<void> {
     const ownership = await this.orderRepository.getOrderOwnershipById(orderId);
     if (!ownership) {
@@ -246,9 +247,10 @@ export class OrderService {
       );
     }
 
+    // Override is send-only — the order's stored email stays as the customer entered it.
     await this.orderDeliveryRepository.resendDeliveryEmail(
       orderId,
-      order.email,
+      emailOverride ?? order.email,
       Number(latestPayment.amount),
     );
   }

@@ -23,6 +23,7 @@ const TO_WIRE_TYPE: Record<VoucherDiscountType, WireVoucherDiscountType> = {
 
 interface VoucherInput {
   name: string;
+  description?: string;
   discountType: WireVoucherDiscountType;
   conditions: VoucherConditionDto[];
 }
@@ -52,6 +53,7 @@ export class VouchersService {
     const voucher = await this.repository.create({
       photographerId,
       name: input.name,
+      description: input.description?.trim() || null,
       discountType: TO_PRISMA_TYPE[input.discountType],
       conditions: input.conditions as unknown as Prisma.InputJsonValue,
     });
@@ -66,6 +68,10 @@ export class VouchersService {
     const existing = await this.assertOwnedByPhotographer(photographerId, id);
     const voucher = await this.repository.update(id, {
       name: changes.name,
+      description:
+        changes.description === undefined
+          ? undefined
+          : changes.description.trim() || null,
       discountType: changes.discountType
         ? TO_PRISMA_TYPE[changes.discountType]
         : undefined,
@@ -100,6 +106,7 @@ export class VouchersService {
     id: string;
     photographerId: string;
     name: string;
+    description: string | null;
     discountType: VoucherDiscountType;
     conditions: unknown;
     bundlesUsingCount: number;
@@ -108,6 +115,7 @@ export class VouchersService {
       id: voucher.id,
       photographerId: voucher.photographerId,
       name: voucher.name,
+      description: voucher.description,
       discountType: TO_WIRE_TYPE[voucher.discountType],
       conditions: voucher.conditions as VoucherConditionDto[],
       bundlesUsingCount: voucher.bundlesUsingCount,

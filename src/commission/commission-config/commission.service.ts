@@ -1,4 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import type { PaymentProvider } from '../../../generated/prisma/enums';
 import { CommissionCalculatorRegistry } from './commission-calculator.registry';
 import type {
   CommissionCalculation,
@@ -11,6 +12,7 @@ import {
 
 export interface CommissionForPaymentParams {
   paymentPlatformOptionId: string;
+  provider: PaymentProvider;
   isImposeCommission: boolean;
   order: CommissionOrderBasis;
 }
@@ -29,7 +31,10 @@ export class CommissionService {
       return null;
     }
 
-    const plan = await this.getApplicablePlan(params.paymentPlatformOptionId);
+    const plan = await this.getApplicablePlan(
+      params.paymentPlatformOptionId,
+      params.provider,
+    );
     if (!plan) {
       return null;
     }
@@ -67,6 +72,7 @@ export class CommissionService {
 
   private async getApplicablePlan(
     paymentPlatformOptionId: string,
+    provider: PaymentProvider,
   ): Promise<CommissionPlanPayload | null> {
     const assignedPlan =
       await this.commissionRepository.getActivePlanAssignedToOption(
@@ -76,6 +82,6 @@ export class CommissionService {
     if (isPlanAssigned) {
       return assignedPlan;
     }
-    return await this.commissionRepository.getDefaultActivePlan();
+    return await this.commissionRepository.getDefaultActivePlan(provider);
   }
 }

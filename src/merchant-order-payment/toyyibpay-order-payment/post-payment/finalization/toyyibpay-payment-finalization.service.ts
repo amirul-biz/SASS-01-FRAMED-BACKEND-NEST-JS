@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CommissionService } from '../../../../commission/commission-config/commission.service';
 import type { CommissionCalculation } from '../../../../commission/commission-config/commission.interface';
-import { TransitionSource } from '../../../../../generated/prisma/enums';
+import {
+  PaymentProvider,
+  TransitionSource,
+} from '../../../../../generated/prisma/enums';
 import { EmailService } from '../../../../email/email.service';
 import { OrderDeliveryRepository } from '../../../core/order-delivery/order-delivery.repository';
 import { PaymentForMarkingPayload } from '../../../core/payment-transition/payment-transition.repository';
@@ -74,6 +77,7 @@ export class ToyyibPayPaymentFinalizationService {
   ): Promise<CommissionCalculation | null> {
     return await this.commissionService.getCommissionForPayment({
       paymentPlatformOptionId: payment.merchantPaymentPlatformOptionId,
+      provider: PaymentProvider.TOYYIBPAY,
       isImposeCommission:
         payment.merchantPaymentPlatformOption.isImposeCommission,
       order: {
@@ -102,10 +106,13 @@ export class ToyyibPayPaymentFinalizationService {
       return false;
     }
 
+    const photographerProfile = payment.order.event.photographerProfile;
     await this.emailService.sendPaymentFailedEmail({
       orderId: payment.orderId,
       email: payment.order.email,
       amount: Number(payment.amount),
+      photographerContactNo:
+        photographerProfile.contactNo ?? photographerProfile.phone,
     });
     return true;
   }

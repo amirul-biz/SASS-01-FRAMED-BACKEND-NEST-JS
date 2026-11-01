@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../config/database/prisma.module';
 import { CommissionModule } from '../../commission/commission-config/commission.module';
+import { EmailModule } from '../../email/email.module';
 import { MerchantPaymentPlatformModule } from '../../merchant-payment-platform/merchant-payment-platform.module';
 import { MerchantOrderPaymentModule } from '../merchant-order-payment.module';
 import { CashOrderPaymentController } from './cash-order-payment.controller';
@@ -12,6 +13,7 @@ import { CashOrderPaymentService } from './cash-order-payment.service';
     PrismaModule,
     MerchantPaymentPlatformModule,
     CommissionModule,
+    EmailModule,
     MerchantOrderPaymentModule,
   ],
   controllers: [CashOrderPaymentController],

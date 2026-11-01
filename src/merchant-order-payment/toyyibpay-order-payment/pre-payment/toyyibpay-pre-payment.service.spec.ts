@@ -99,6 +99,7 @@ describe('ToyyibPayPrePaymentService.createBillForPayment', () => {
 
     expect(commissionService.getCommissionForPayment).toHaveBeenCalledWith({
       paymentPlatformOptionId: 'option-1',
+      provider: 'TOYYIBPAY',
       isImposeCommission: true,
       order: { amountPaid: 30, itemPrices: [30] },
     });

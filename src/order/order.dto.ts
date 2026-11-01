@@ -24,6 +24,16 @@ import {
 } from '../../generated/prisma/enums';
 import { ORDER_PAGINATION, OrderPaymentTracking } from './order.constants';
 
+export class ResendDeliveryEmailDto {
+  @ApiPropertyOptional({
+    example: 'rider@example.com',
+    description: "Overrides the order's email for this send only",
+  })
+  @IsOptional()
+  @IsEmail({}, { message: 'A valid email is required' })
+  email?: string;
+}
+
 export class CreateOrderItemDto {
   @ApiProperty({ example: 'e91a5108-699c-4fd8-8ef9-98f0813de6a2' })
   @IsString()

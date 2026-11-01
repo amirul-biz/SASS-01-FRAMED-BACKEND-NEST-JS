@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { type Express } from 'express';
 import {
+  PhotographerDashboardResponseDto,
   PhotographerProfileResponseDto,
   PresignProfileImageUploadDto,
   PresignProfileImageUploadResponseDto,
@@ -108,6 +109,16 @@ export class PhotographerController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<PhotographerProfileResponseDto> {
     return await this.photographerService.getMyProfile(user);
+  }
+
+  @Get('dashboard')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.PHOTOGRAPHER)
+  async getMyDashboard(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PhotographerDashboardResponseDto> {
+    return await this.photographerService.getMyDashboard(user);
   }
 
   @Get('profile/completeness')

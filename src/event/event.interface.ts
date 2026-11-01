@@ -36,6 +36,7 @@ export interface PublishedEventPricingOption {
 export interface PublishedEventVoucher {
   id: string;
   name: string;
+  description: string | null;
   discountType: WireVoucherDiscountType;
   conditions: VoucherConditionDto[];
 }

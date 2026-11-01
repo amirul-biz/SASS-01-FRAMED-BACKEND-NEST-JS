@@ -69,13 +69,14 @@ describe('EmailService.sendPaymentFailedEmail', () => {
     service = new EmailService();
   });
 
-  it('sends a payment-failed email with a retry link back to the cart', async () => {
+  it('sends a payment-failed email with contact-us and contact-photographer WhatsApp links', async () => {
     sendMailMock.mockResolvedValue({ ok: true });
 
     await service.sendPaymentFailedEmail({
       orderId: 'order-1',
       email: 'rider@example.com',
       amount: 30,
+      photographerContactNo: '0123456789',
     });
 
     expect(sendMailMock).toHaveBeenCalledTimes(1);
@@ -89,8 +90,48 @@ describe('EmailService.sendPaymentFailedEmail', () => {
         },
       },
     ]);
-    expect(payload.htmlbody).toContain('http://localhost:4200/cart');
     expect(payload.htmlbody).toContain('30.00');
+    expect(payload.htmlbody).toContain('Contact us');
+    expect(payload.htmlbody).toContain('Contact photographer');
+    expect(payload.htmlbody).toContain('https://wa.me/60104459106?text=');
+    expect(payload.htmlbody).toContain('https://wa.me/60123456789?text=');
+    expect(payload.htmlbody).toContain('%23ORDER-1');
+    expect(payload.htmlbody).not.toContain('Try Again');
+    expect(payload.htmlbody).not.toContain('/cart');
+  });
+
+  it('points contact photographer at the platform number when the photographer has none', async () => {
+    sendMailMock.mockResolvedValue({ ok: true });
+
+    await service.sendPaymentFailedEmail({
+      orderId: 'order-1',
+      email: 'rider@example.com',
+      amount: 30,
+      photographerContactNo: null,
+    });
+
+    const html: string = sendMailMock.mock.calls[0][0].htmlbody;
+    expect(html.match(/https:\/\/wa\.me\/60104459106\?text=/g)).toHaveLength(2);
+  });
+
+  it('uses PLATFORM_CONTACT_WHATSAPP for the contact-us link when set', async () => {
+    sendMailMock.mockResolvedValue({ ok: true });
+    process.env.PLATFORM_CONTACT_WHATSAPP = '60111111111';
+
+    try {
+      await service.sendPaymentFailedEmail({
+        orderId: 'order-1',
+        email: 'rider@example.com',
+        amount: 30,
+        photographerContactNo: '0123456789',
+      });
+    } finally {
+      delete process.env.PLATFORM_CONTACT_WHATSAPP;
+    }
+
+    const html: string = sendMailMock.mock.calls[0][0].htmlbody;
+    expect(html).toContain('https://wa.me/60111111111?text=');
+    expect(html).not.toContain('https://wa.me/60104459106');
   });
 
   it('does not throw when ZeptoMail rejects the send', async () => {
@@ -101,6 +142,7 @@ describe('EmailService.sendPaymentFailedEmail', () => {
         orderId: 'order-1',
         email: 'rider@example.com',
         amount: 30,
+        photographerContactNo: '0123456789',
       }),
     ).resolves.toBeUndefined();
   });

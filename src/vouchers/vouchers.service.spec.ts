@@ -53,6 +53,7 @@ describe('VouchersService', () => {
 
       await service.create('photographer-1', {
         name: 'Group Discount',
+        description: '  One use per order  ',
         discountType: 'percent-tier',
         conditions: voucher.conditions,
       });
@@ -60,6 +61,7 @@ describe('VouchersService', () => {
       expect(repository.create).toHaveBeenCalledWith({
         photographerId: 'photographer-1',
         name: 'Group Discount',
+        description: 'One use per order',
         discountType: 'PERCENT_TIER',
         conditions: voucher.conditions,
       });

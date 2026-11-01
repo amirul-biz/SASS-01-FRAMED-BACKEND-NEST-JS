@@ -10,6 +10,7 @@ import {
   PaymentProvider,
 } from '../../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../../types/express';
+import { EmailService } from '../../email/email.service';
 import { CommissionService } from '../../commission/commission-config/commission.service';
 import { PaymentTransitionRepository } from '../core/payment-transition/payment-transition.repository';
 import { MerchantPaymentPlatformService } from '../../merchant-payment-platform/merchant-payment-platform.service';
@@ -30,6 +31,7 @@ export class CashOrderPaymentService {
     private readonly paymentTransitionRepository: PaymentTransitionRepository,
     private readonly merchantPaymentPlatformService: MerchantPaymentPlatformService,
     private readonly commissionService: CommissionService,
+    private readonly emailService: EmailService,
   ) {}
 
   async markCashPaymentAsPaid(
@@ -61,6 +63,7 @@ export class CashOrderPaymentService {
 
     const commission = await this.commissionService.getCommissionForPayment({
       paymentPlatformOptionId: payment.merchantPaymentPlatformOptionId,
+      provider: PaymentProvider.CASH,
       isImposeCommission:
         payment.merchantPaymentPlatformOption.isImposeCommission,
       order: {
@@ -78,6 +81,14 @@ export class CashOrderPaymentService {
     if (!result) {
       throw new ConflictException('This payment has already been processed');
     }
+
+    // Same email ToyyibPay sends on delivery. Only reached by the one request that won the
+    // PENDING -> PAID update, so a retry or race (409 above) can never send a second one.
+    await this.emailService.sendPhotosDeliveredEmail({
+      orderId: payment.orderId,
+      email: payment.order.email,
+      amount: Number(payment.amount),
+    });
     return this.getMappedCashOrderPaymentResponseDto(result);
   }
 

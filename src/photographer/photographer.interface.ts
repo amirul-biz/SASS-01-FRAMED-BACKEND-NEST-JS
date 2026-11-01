@@ -3,7 +3,7 @@ import type {
   User,
   UserPlatform,
 } from '../../generated/prisma/client';
-import type { EventCategory } from '../../generated/prisma/enums';
+import type { EventCategory, OrderStatus } from '../../generated/prisma/enums';
 
 export interface CreatePhotographerProfileData {
   firebaseId: string;
@@ -40,4 +40,26 @@ export interface PublicPhotographerProfile {
   eventCount: number;
   photoCount: number;
   topCategory: EventCategory | null;
+}
+
+export interface PhotographerDashboardTopEvent {
+  eventId: string;
+  title: string;
+  orderCount: number;
+  revenue: number;
+}
+
+export interface PhotographerDashboardStats {
+  totalEvents: number;
+  liveEvents: number;
+  draftEvents: number;
+  inactiveEvents: number;
+  photoCount: number;
+  storageBytes: number;
+  ordersByStatus: Record<OrderStatus, number>;
+  photosSold: number;
+  grossRevenue: number;
+  pendingRevenue: number;
+  totalCommission: number;
+  topEvents: PhotographerDashboardTopEvent[];
 }

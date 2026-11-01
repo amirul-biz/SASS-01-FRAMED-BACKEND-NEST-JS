@@ -112,6 +112,7 @@ export class PricingBundlesService {
       voucher: {
         id: string;
         name: string;
+        description: string | null;
         discountType: VoucherDiscountType;
         conditions: unknown;
       };
@@ -128,6 +129,7 @@ export class PricingBundlesService {
       ({ voucher }) => ({
         id: voucher.id,
         name: voucher.name,
+        description: voucher.description,
         discountType: TO_WIRE_VOUCHER_TYPE[voucher.discountType],
         conditions: voucher.conditions as VoucherConditionDto[],
       }),

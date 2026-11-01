@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -12,10 +11,6 @@ import {
 import { PaymentProvider } from '../../../../generated/prisma/enums';
 import type { AuthenticatedUser } from '../../../types/express';
 import { MerchantPaymentPlatformService } from '../../merchant-payment-platform.service';
-import {
-  ToyyibPayApiClient,
-  ToyyibPayCredentialError,
-} from './toyyibpay-api.client';
 import { ToyyibPayPaymentConfigRepository } from './toyyibpay-payment-config.repository';
 import {
   CreateToyyibPayPaymentConfigOptionDto,
@@ -44,7 +39,6 @@ export interface ToyyibPayCredentials {
 export class ToyyibPayPaymentConfigService {
   constructor(
     private readonly toyyibPayPaymentConfigRepository: ToyyibPayPaymentConfigRepository,
-    private readonly toyyibPayApiClient: ToyyibPayApiClient,
     private readonly merchantPaymentPlatformService: MerchantPaymentPlatformService,
   ) {}
 
@@ -68,7 +62,10 @@ export class ToyyibPayPaymentConfigService {
       );
     }
 
-    await this.verifyToyyibPayCredentials(dto.secretKey, dto.categoryCode);
+    await this.merchantPaymentPlatformService.verifyToyyibPayCredentials(
+      dto.secretKey,
+      dto.categoryCode,
+    );
 
     const approvalStatus =
       this.merchantPaymentPlatformService.getConfiguredApprovalStatus();
@@ -82,6 +79,7 @@ export class ToyyibPayPaymentConfigService {
           encryptedSecretKey: encryptSecret(dto.secretKey),
           chargeFpxToCustomer: dto.chargeFpxToCustomer,
           chargeToPrepaid: dto.chargeToPrepaid,
+          verifiedAt: new Date(),
         },
       );
     return this.getMappedToyyibPayPaymentConfigOptionResponseDto(option);
@@ -112,7 +110,7 @@ export class ToyyibPayPaymentConfigService {
       userPlatformId,
     );
 
-    await this.verifyToyyibPayCredentialsIfChanging(
+    const wasVerified = await this.verifyToyyibPayCredentialsIfChanging(
       dto,
       existingOption.toyyibPayPaymentPlatformOption,
     );
@@ -130,6 +128,7 @@ export class ToyyibPayPaymentConfigService {
               : undefined,
           chargeFpxToCustomer: dto.chargeFpxToCustomer,
           chargeToPrepaid: dto.chargeToPrepaid,
+          verifiedAt: wasVerified ? new Date() : undefined,
         },
       );
     return this.getMappedToyyibPayPaymentConfigOptionResponseDto(updatedOption);
@@ -160,38 +159,25 @@ export class ToyyibPayPaymentConfigService {
     };
   }
 
-  private async verifyToyyibPayCredentials(
-    secretKey: string,
-    categoryCode: string,
-  ): Promise<void> {
-    try {
-      await this.toyyibPayApiClient.getCategoryDetails(secretKey, categoryCode);
-    } catch (error) {
-      if (error instanceof ToyyibPayCredentialError) {
-        throw new BadRequestException(error.message);
-      }
-      throw error;
-    }
-  }
-
   private async verifyToyyibPayCredentialsIfChanging(
     dto: UpdateToyyibPayPaymentConfigOptionDto,
     existingCredentials: ToyyibPayPaymentConfigOptionCredentials,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const isCredentialFieldChanging =
       dto.categoryCode !== undefined || dto.secretKey !== undefined;
     if (!isCredentialFieldChanging) {
-      return;
+      return false;
     }
 
     const secretKeyToVerify =
       dto.secretKey ?? decryptSecret(existingCredentials.secretKey);
     const categoryCodeToVerify =
       dto.categoryCode ?? existingCredentials.categoryCode;
-    await this.verifyToyyibPayCredentials(
+    await this.merchantPaymentPlatformService.verifyToyyibPayCredentials(
       secretKeyToVerify,
       categoryCodeToVerify,
     );
+    return true;
   }
 
   private getMappedToyyibPayPaymentConfigOptionResponseDto(

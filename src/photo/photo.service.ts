@@ -6,6 +6,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
 import { PrivateStorageService } from '../config/storage/private-storage.service';
+import { PublicStorageService } from '../config/storage/public-storage.service';
 import { EventService } from '../event/event.service';
 import type { Photo } from '../../generated/prisma/client';
 import type { AuthenticatedUser } from '../types/express';
@@ -41,6 +42,7 @@ export class PhotoService {
     private readonly photoRepository: PhotoRepository,
     private readonly eventService: EventService,
     private readonly privateStorageService: PrivateStorageService,
+    private readonly publicStorageService: PublicStorageService,
   ) {}
 
   async presignBatch(
@@ -203,7 +205,7 @@ export class PhotoService {
       items: items.map((photo) => ({
         id: photo.id,
         originalName: photo.originalName,
-        url: this.privateStorageService.buildPublicUrl(photo.key),
+        url: this.publicStorageService.buildPublicUrl(photo.key),
         width: photo.width,
         height: photo.height,
         capturedAt: photo.capturedAt,

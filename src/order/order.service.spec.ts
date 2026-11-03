@@ -103,6 +103,7 @@ describe('OrderService.create', () => {
       eventService as any,
       {} as any,
       { buildPublicUrl: jest.fn() } as any,
+      { buildPublicUrl: (k: string) => `public/${k}` } as any,
       orderPricingService as any,
       orderHistoryService as any,
       payableOptionService as any,
@@ -293,6 +294,7 @@ describe('OrderService.getHistory', () => {
       {} as any,
       photographerService as any,
       {} as any,
+      { buildPublicUrl: (k: string) => `public/${k}` } as any,
       {} as any,
       orderHistoryService as any,
       {} as any,
@@ -352,6 +354,7 @@ describe('OrderService.listForPhotographer', () => {
       {} as any,
       photographerService as any,
       {} as any,
+      { buildPublicUrl: (k: string) => `public/${k}` } as any,
       {} as any,
       {} as any,
       {} as any,
@@ -412,7 +415,8 @@ describe('OrderService.getReceiptForCustomer', () => {
       orderRepository as any,
       {} as any,
       {} as any,
-      { buildPublicUrl: jest.fn() } as any,
+      { buildPublicUrl: (k: string) => `private/${k}` } as any,
+      { buildPublicUrl: (k: string) => `public/${k}` } as any,
       {} as any,
       orderHistoryService as any,
       {} as any,
@@ -454,6 +458,17 @@ describe('OrderService.getReceiptForCustomer', () => {
     await expect(service.getReceiptForCustomer('order-1')).resolves.toEqual(
       expect.objectContaining({ id: 'order-1' }),
     );
+  });
+
+  it('serves the original (private bucket) photo URL, not the watermarked one', async () => {
+    orderRepository.getOrderById.mockResolvedValue({
+      ...baseOrder,
+      items: [{ id: 'i1', photoId: 'p1', photo: { key: 'k1', originalName: 'a.jpg' }, formatLabel: 'x', price: 5 }],
+    });
+
+    const res = await service.getReceiptForCustomer('order-1');
+
+    expect(res.items[0].photoUrl).toBe('private/k1');
   });
 
   it('returns the receipt for an order that is DELIVERED', async () => {
@@ -506,6 +521,7 @@ describe('OrderService.resendDeliveryEmail', () => {
       {} as any,
       photographerService as any,
       {} as any,
+      { buildPublicUrl: (k: string) => `public/${k}` } as any,
       {} as any,
       {} as any,
       {} as any,

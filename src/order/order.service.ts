@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrivateStorageService } from '../config/storage/private-storage.service';
+import { PublicStorageService } from '../config/storage/public-storage.service';
 import { EventService } from '../event/event.service';
 import { OrderDeliveryRepository } from '../merchant-order-payment/core/order-delivery/order-delivery.repository';
 import { OrderHistoryService } from '../merchant-order-payment/core/order-history/order-history.service';
@@ -37,6 +38,7 @@ export class OrderService {
     private readonly eventService: EventService,
     private readonly photographerService: PhotographerService,
     private readonly privateStorageService: PrivateStorageService,
+    private readonly publicStorageService: PublicStorageService,
     private readonly orderPricingService: OrderPricingService,
     private readonly orderHistoryService: OrderHistoryService,
     private readonly payableOptionService: PayableOptionService,
@@ -264,12 +266,12 @@ export class OrderService {
     return ownedCount === photoIds.length;
   }
 
-  // useDeliveryUrl is true only for the post-payment customer delivery path
-  // (getReceiptForCustomer) — the checkout response and the photographer's Studio view both keep
-  // using the regular R2_PRIVATE_BUCKET_URL via buildPublicUrl.
+  // isOriginal=true → un-watermarked original from the private bucket URL (paid receipt, the
+  // photographer's Studio view). false → watermarked copy via the public bucket URL (checkout
+  // response, before payment).
   private getMappedOrderDto(
     order: OrderPayload,
-    useDeliveryUrl = false,
+    isOriginal = false,
   ): OrderResponseDto {
     return {
       id: order.id,
@@ -290,9 +292,9 @@ export class OrderService {
         id: item.id,
         photoId: item.photoId,
         photoName: item.photo.originalName,
-        photoUrl: useDeliveryUrl
-          ? this.privateStorageService.buildDeliveryUrl(item.photo.key)
-          : this.privateStorageService.buildPublicUrl(item.photo.key),
+        photoUrl: isOriginal
+          ? this.privateStorageService.buildPublicUrl(item.photo.key)
+          : this.publicStorageService.buildPublicUrl(item.photo.key),
         formatLabel: item.formatLabel,
         price: Number(item.price),
       })),
@@ -302,7 +304,7 @@ export class OrderService {
   private getMappedPhotographerOrderDto(
     order: PhotographerOrderPayload,
   ): PhotographerOrderDto {
-    return { ...this.getMappedOrderDto(order), eventTitle: order.event.title };
+    return { ...this.getMappedOrderDto(order, true), eventTitle: order.event.title };
   }
 
   private getMappedLatestPaymentDto(

@@ -564,15 +564,31 @@ describe('OrderService.resendDeliveryEmail', () => {
     expect(orderDeliveryRepository.resendDeliveryEmail).not.toHaveBeenCalled();
   });
 
-  it('throws 400 when the order is not a ToyyibPay payment (e.g. cash)', async () => {
+  it('resends the delivery email for a delivered CASH order too', async () => {
     orderRepository.getOrderById.mockResolvedValue({
       ...deliveredOrder,
       payments: [{ provider: 'CASH', amount: '30.00' }],
     });
 
+    await service.resendDeliveryEmail({} as any, 'order-1');
+
+    expect(orderDeliveryRepository.resendDeliveryEmail).toHaveBeenCalledWith(
+      'order-1',
+      'rider@example.com',
+      30,
+    );
+  });
+
+  it('throws 400 when a delivered order has no payment row', async () => {
+    orderRepository.getOrderById.mockResolvedValue({
+      ...deliveredOrder,
+      payments: [],
+    });
+
     await expect(
       service.resendDeliveryEmail({} as any, 'order-1'),
     ).rejects.toThrow(BadRequestException);
+    expect(orderDeliveryRepository.resendDeliveryEmail).not.toHaveBeenCalled();
   });
 
   it('resends the delivery email for a delivered ToyyibPay order', async () => {

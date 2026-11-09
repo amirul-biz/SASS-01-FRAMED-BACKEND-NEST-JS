@@ -8,6 +8,7 @@ import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
 import { PrivateStorageService } from '../config/storage/private-storage.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
 import { EventService } from '../event/event.service';
+import { StorageLimitService } from '../storage-limit/storage-limit.service';
 import type { Photo } from '../../generated/prisma/client';
 import type { AuthenticatedUser } from '../types/express';
 import {
@@ -43,6 +44,7 @@ export class PhotoService {
     private readonly eventService: EventService,
     private readonly privateStorageService: PrivateStorageService,
     private readonly publicStorageService: PublicStorageService,
+    private readonly storageLimitService: StorageLimitService,
   ) {}
 
   async presignBatch(
@@ -50,7 +52,11 @@ export class PhotoService {
     eventId: string,
     dto: PresignPhotosBatchDto,
   ): Promise<PresignPhotosBatchResponseDto> {
-    await this.eventService.getMyEvent(user, eventId);
+    const event = await this.eventService.getMyEvent(user, eventId);
+    await this.storageLimitService.assertWithinLimit(
+      event.photographerId,
+      dto.files.reduce((total, file) => total + (file.sizeBytes ?? 0), 0),
+    );
 
     const pendingRows = await Promise.all(
       dto.files.map(async (file) => {

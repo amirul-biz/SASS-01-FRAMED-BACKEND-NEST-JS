@@ -26,6 +26,7 @@ describe('PhotographerService', () => {
     inactiveEvents: 0,
     photoCount: 10,
     storageBytes: 2048,
+    storageLimitMb: null,
     ordersByStatus: {
       PENDING_CONFIRMATION: 1,
       PROCESSING: 1,

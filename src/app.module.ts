@@ -22,6 +22,7 @@ import { MerchantOrderPaymentModule } from './merchant-order-payment/merchant-or
 import { CashOrderPaymentModule } from './merchant-order-payment/cash-order-payment/cash-order-payment.module';
 import { CommissionModule } from './commission/commission-config/commission.module';
 import { SystemPaymentPlatformModule } from './system-payment-platform/system-payment-platform.module';
+import { StorageLimitModule } from './storage-limit/storage-limit.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { SystemPaymentPlatformModule } from './system-payment-platform/system-pa
     CashOrderPaymentModule,
     CommissionModule,
     SystemPaymentPlatformModule,
+    StorageLimitModule,
   ],
   controllers: [AppController],
   providers: [AppService],

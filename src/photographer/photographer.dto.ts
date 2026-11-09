@@ -241,6 +241,7 @@ export class PhotographerDashboardResponseDto {
   @ApiProperty() @IsNumber() inactiveEvents!: number;
   @ApiProperty() @IsNumber() photoCount!: number;
   @ApiProperty() @IsNumber() storageBytes!: number;
+  @ApiProperty({ nullable: true }) storageLimitMb!: number | null;
 
   @ApiProperty({
     example: {

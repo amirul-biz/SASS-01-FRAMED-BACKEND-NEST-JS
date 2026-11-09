@@ -75,12 +75,30 @@ model PhotographerProfile {
   nickname        String?      @unique
   profileImageKey String?      @map("profile_image_key")
   bannerKey       String?      @map("banner_key")
+  // Null = unlimited storage.
+  storageLimitId  String?      @map("storage_limit_id")
+  storageLimit    StorageLimit? @relation(fields: [storageLimitId], references: [id], onDelete: Restrict)
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
   events Event[]
 
+  @@index([storageLimitId], map: "idx_photographer_profiles_storage_limit")
   @@map("photographer_profiles")
+}
+
+// Reusable storage quota an admin assigns to photographers. Stored in MB, shown in GB.
+// limit_mb > 0 and unique name are enforced in the migration (check / unique index).
+model StorageLimit {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  limitMb   Int      @map("limit_mb")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  photographers PhotographerProfile[]
+
+  @@map("storage_limits")
 }
 
 model Event {

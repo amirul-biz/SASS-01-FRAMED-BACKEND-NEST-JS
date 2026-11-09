@@ -56,6 +56,8 @@ export interface PhotographerDashboardStats {
   inactiveEvents: number;
   photoCount: number;
   storageBytes: number;
+  // Assigned storage limit in MB; null = unlimited.
+  storageLimitMb: number | null;
   ordersByStatus: Record<OrderStatus, number>;
   photosSold: number;
   grossRevenue: number;

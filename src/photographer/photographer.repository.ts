@@ -255,6 +255,7 @@ export class PhotographerRepository {
       pendingAgg,
       commissionAgg,
       topEventGroups,
+      limitProfile,
     ] = await Promise.all([
       this.prisma.event.count({ where: { ...ownEvent, deletedAt: null } }),
       this.prisma.event.count({
@@ -299,6 +300,10 @@ export class PhotographerRepository {
         orderBy: { _sum: { total: 'desc' } },
         take: TOP_EVENT_LIMIT,
       }),
+      this.prisma.photographerProfile.findUnique({
+        where: { id: photographerId },
+        select: { storageLimit: { select: { limitMb: true } } },
+      }),
     ]);
 
     const topEventTitles = await this.prisma.event.findMany({
@@ -326,6 +331,7 @@ export class PhotographerRepository {
       inactiveEvents,
       photoCount: photoAgg._count._all,
       storageBytes: photoAgg._sum.sizeBytes ?? 0,
+      storageLimitMb: limitProfile?.storageLimit?.limitMb ?? null,
       ordersByStatus,
       photosSold,
       grossRevenue: Number(paidAgg._sum.total ?? 0),

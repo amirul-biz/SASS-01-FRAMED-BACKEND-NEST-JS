@@ -216,6 +216,17 @@ export class CommissionAdminService {
       );
     }
 
+    // A ToyyibPay assignment must name the system account that receives the commission — there is
+    // no implicit default, and silently skipping the split would leave the platform unpaid.
+    if (
+      option.provider === PaymentProvider.TOYYIBPAY &&
+      (dto.splitSystemAccountId === undefined || dto.splitSystemAccountId === null)
+    ) {
+      throw new BadRequestException(
+        'A ToyyibPay commission assignment must specify the system account that receives the commission',
+      );
+    }
+
     const split = await this.getValidatedSplit(
       option,
       dto.splitSystemAccountId,

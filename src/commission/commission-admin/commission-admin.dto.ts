@@ -51,13 +51,13 @@ export class CreateCommissionPlanDto {
   @Max(MAX_COMMISSION_VALUE)
   value!: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     enum: PaymentProvider,
-    description: 'Omit for a plan that applies to any provider',
+    description:
+      'Every plan belongs to exactly one provider; only Cash and ToyyibPay are in use',
   })
   @IsEnum(PaymentProvider)
-  @IsOptional()
-  provider?: PaymentProvider;
+  provider!: PaymentProvider;
 
   @ApiPropertyOptional({ default: false })
   @IsBoolean()

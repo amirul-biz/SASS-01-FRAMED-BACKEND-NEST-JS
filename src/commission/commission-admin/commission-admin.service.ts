@@ -53,7 +53,7 @@ export class CommissionAdminService {
     const plan = await this.commissionAdminRepository.createPlan({
       name: dto.name,
       type: dto.type,
-      provider: dto.provider ?? null,
+      provider: dto.provider,
       isDefault: dto.isDefault ?? false,
       value: dto.value,
     });

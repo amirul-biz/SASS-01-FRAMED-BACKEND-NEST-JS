@@ -54,6 +54,12 @@ export class EventController {
     return await this.eventService.listMyEvents(user, query);
   }
 
+  // Declared before @Get(':id') so "storage" isn't read as an event id.
+  @Get('storage')
+  async getMyStorage(@CurrentUser() user: AuthenticatedUser) {
+    return await this.eventService.getMyStorage(user);
+  }
+
   @Post('cover-photo/presign')
   @UsePipes(new ValidationPipe({ transform: true }))
   async presignCoverPhotoUpload(

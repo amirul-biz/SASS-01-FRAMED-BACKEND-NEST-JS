@@ -107,6 +107,10 @@ export class StorageLimitService {
     return { usedBytes: used.get(photographerId) ?? 0, limitMb };
   }
 
+  async getUploadedPhotoCount(photographerId: string): Promise<number> {
+    return await this.repository.getUploadedPhotoCount(photographerId);
+  }
+
   async getEventUsedBytes(eventId: string): Promise<number> {
     return await this.repository.getUsedBytesForEvent(eventId);
   }

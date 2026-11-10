@@ -112,6 +112,13 @@ export class StorageLimitRepository {
     return profile?.storageLimit?.limitMb ?? null;
   }
 
+  // Same set of photos as the used-bytes rule: confirmed, non-deleted, soft-deleted events included.
+  async getUploadedPhotoCount(photographerId: string): Promise<number> {
+    return await this.prisma.photo.count({
+      where: { status: 'UPLOADED', deletedAt: null, event: { photographerId } },
+    });
+  }
+
   async getUsedBytesForEvent(eventId: string): Promise<number> {
     const agg = await this.prisma.photo.aggregate({
       where: { eventId, status: 'UPLOADED', deletedAt: null },

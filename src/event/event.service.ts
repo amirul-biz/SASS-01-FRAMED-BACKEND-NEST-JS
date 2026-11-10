@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
 import { PublicStorageService } from '../config/storage/public-storage.service';
 import { PhotographerService } from '../photographer/photographer.service';
+import { StorageLimitService } from '../storage-limit/storage-limit.service';
 import type { AuthenticatedUser } from '../types/express';
 import {
   CreateEventDto,
@@ -32,7 +33,22 @@ export class EventService {
     private readonly eventRepository: EventRepository,
     private readonly photographerService: PhotographerService,
     private readonly publicStorageService: PublicStorageService,
+    private readonly storageLimitService: StorageLimitService,
   ) {}
+
+  async getMyStorage(user: AuthenticatedUser): Promise<{
+    usedBytes: number;
+    limitMb: number | null;
+    photoCount: number;
+  }> {
+    const photographerId =
+      await this.photographerService.getOwnPhotographerProfileId(user);
+    const [usage, photoCount] = await Promise.all([
+      this.storageLimitService.getUsage(photographerId),
+      this.storageLimitService.getUploadedPhotoCount(photographerId),
+    ]);
+    return { ...usage, photoCount };
+  }
 
   async createEvent(
     user: AuthenticatedUser,

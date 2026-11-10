@@ -212,6 +212,7 @@ export class EventResponseDto {
 
   // Set only by the "my events" list.
   @ApiPropertyOptional() @IsInt() @IsOptional() usedBytes?: number;
+  @ApiPropertyOptional() @IsInt() @IsOptional() photoCount?: number;
 }
 
 export class PaginatedEventListResponseDto {

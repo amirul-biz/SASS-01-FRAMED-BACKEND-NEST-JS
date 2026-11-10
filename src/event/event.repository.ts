@@ -241,15 +241,15 @@ export class EventRepository {
         deletedAt: null,
       },
       _sum: { sizeBytes: true },
+      _count: { _all: true },
     });
-    const usedByEvent = new Map(
-      usage.map((u) => [u.eventId, u._sum.sizeBytes ?? 0]),
-    );
+    const usageByEvent = new Map(usage.map((u) => [u.eventId, u]));
 
     return {
       items: items.map((event) => ({
         ...toEventResponse(event, this.publicStorageService),
-        usedBytes: usedByEvent.get(event.id) ?? 0,
+        usedBytes: usageByEvent.get(event.id)?._sum.sizeBytes ?? 0,
+        photoCount: usageByEvent.get(event.id)?._count._all ?? 0,
       })),
       totalItemCount,
     };

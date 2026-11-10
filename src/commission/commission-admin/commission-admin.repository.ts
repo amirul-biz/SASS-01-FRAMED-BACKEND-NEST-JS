@@ -228,6 +228,8 @@ export class CommissionAdminRepository {
     });
   }
 
+  // Checks the provider-specific account row, which is the id the UI sends (`accountId`), not the
+  // parent SystemPaymentPlatform id.
   async isToyyibPaySystemAccountExisting(accountId: string): Promise<boolean> {
     const count = await this.prisma.systemToyyibPayPaymentPlatformAccount.count(
       { where: { id: accountId } },

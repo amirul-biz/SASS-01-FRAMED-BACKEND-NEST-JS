@@ -250,6 +250,24 @@ export class ToyyibPayApiClient {
       );
     }
 
+    // Confirmed live against dev.toyyibpay.com: a valid key with a WRONG category code does not
+    // return an error at all — it returns 200 with every field present but blank
+    // ({"CategoryName":"","categoryDescription":"","categoryStatus":""}). So "all three fields
+    // are strings" is not proof of a good category; blanks are the actual rejection signal.
+    if (categoryDetails.categoryName.trim().length === 0) {
+      throw new ToyyibPayCredentialError(
+        'ToyyibPay rejected the credentials: the category code does not exist for this secret key',
+      );
+    }
+
+    // Same shape as an inactive category — status is a string but not 1 (seen as "0"). Saving it
+    // would only fail later, at createBill time, on a real customer's payment.
+    if (categoryDetails.categoryStatus.trim() !== '1') {
+      throw new ToyyibPayCredentialError(
+        `ToyyibPay rejected the credentials: category "${categoryDetails.categoryName}" is not active`,
+      );
+    }
+
     return categoryDetails;
   }
 

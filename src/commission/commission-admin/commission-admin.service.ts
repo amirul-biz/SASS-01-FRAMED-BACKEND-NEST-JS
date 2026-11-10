@@ -53,7 +53,7 @@ export class CommissionAdminService {
     const plan = await this.commissionAdminRepository.createPlan({
       name: dto.name,
       type: dto.type,
-      provider: dto.provider ?? null,
+      provider: dto.provider,
       isDefault: dto.isDefault ?? false,
       value: dto.value,
     });
@@ -213,6 +213,17 @@ export class CommissionAdminService {
     if (isPlanForOtherProvider) {
       throw new BadRequestException(
         `Commission plan is for ${plan.provider} and cannot be assigned to a ${option.provider} option`,
+      );
+    }
+
+    // A ToyyibPay assignment must name the system account that receives the commission — there is
+    // no implicit default, and silently skipping the split would leave the platform unpaid.
+    if (
+      option.provider === PaymentProvider.TOYYIBPAY &&
+      (dto.splitSystemAccountId === undefined || dto.splitSystemAccountId === null)
+    ) {
+      throw new BadRequestException(
+        'A ToyyibPay commission assignment must specify the system account that receives the commission',
       );
     }
 

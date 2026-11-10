@@ -240,12 +240,15 @@ export class OrderService {
     }
 
     const latestPayment = order.payments[0];
+    // Any DELIVERED order can be resent, whichever provider got it there: ToyyibPay reaches
+    // DELIVERED via an emailed delivery, and cash reaches it via the photographer's mark-as-paid
+    // (which sends the same email). Both have a delivery email worth re-sending; restricting to
+    // TOYYIBPAY made the button dead for every cash order.
     const canResend =
-      order.status === OrderStatus.DELIVERED &&
-      latestPayment?.provider === PaymentProvider.TOYYIBPAY;
+      order.status === OrderStatus.DELIVERED && latestPayment !== undefined;
     if (!canResend) {
       throw new BadRequestException(
-        'This order has nothing to resend — it must be a delivered ToyyibPay order',
+        'This order has nothing to resend — it must be a delivered order with a payment',
       );
     }
 

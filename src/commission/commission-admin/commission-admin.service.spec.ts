@@ -95,10 +95,11 @@ describe('CommissionAdminService', () => {
         name: 'x',
         type: 'FIXED_AMOUNT_PER_TRANSACTION',
         value: 500,
+        provider: 'CASH',
       } as any);
 
       expect(repository.createPlan).toHaveBeenCalledWith(
-        expect.objectContaining({ provider: null, isDefault: false }),
+        expect.objectContaining({ provider: 'CASH', isDefault: false }),
       );
     });
   });
@@ -189,7 +190,19 @@ describe('CommissionAdminService', () => {
       expect(repository.assignPlan).not.toHaveBeenCalled();
     });
 
-    it('accepts an any-provider plan and turns split off when no account is given', async () => {
+    it('rejects a ToyyibPay assignment that names no system account', async () => {
+      await expect(
+        service.assignPlan('option-1', { commissionPlanId: 'plan-1' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(repository.assignPlan).not.toHaveBeenCalled();
+    });
+
+    it('turns split off for a cash option', async () => {
+      repository.getOptionForAssignment.mockResolvedValue(
+        buildOption({ provider: 'CASH', toyyibPayPaymentPlatformOption: null }),
+      );
+      repository.getPlanForAssignment.mockResolvedValue(buildPlan({ provider: 'CASH' }));
+
       await service.assignPlan('option-1', { commissionPlanId: 'plan-1' });
 
       expect(repository.assignPlan).toHaveBeenCalledWith({

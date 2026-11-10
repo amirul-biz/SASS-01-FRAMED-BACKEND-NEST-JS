@@ -97,20 +97,29 @@ export class StorageLimitService {
     return { success: true };
   }
 
+  async getUsage(
+    photographerId: string,
+  ): Promise<{ usedBytes: number; limitMb: number | null }> {
+    const [limitMb, used] = await Promise.all([
+      this.repository.getLimitMbForPhotographer(photographerId),
+      this.repository.getUsedBytesByPhotographer([photographerId]),
+    ]);
+    return { usedBytes: used.get(photographerId) ?? 0, limitMb };
+  }
+
+  async getEventUsedBytes(eventId: string): Promise<number> {
+    return await this.repository.getUsedBytesForEvent(eventId);
+  }
+
   // Called before presigning uploads. No assigned limit = unlimited.
   // ponytail: check-then-insert, concurrent batches can overshoot slightly; lock per photographer if that matters.
   async assertWithinLimit(
     photographerId: string,
     incomingBytes: number,
   ): Promise<void> {
-    const limitMb =
-      await this.repository.getLimitMbForPhotographer(photographerId);
+    const { usedBytes, limitMb } = await this.getUsage(photographerId);
     if (limitMb === null) return;
-    const used =
-      (await this.repository.getUsedBytesByPhotographer([photographerId])).get(
-        photographerId,
-      ) ?? 0;
-    if (used + incomingBytes > limitMb * BYTES_PER_MB) {
+    if (usedBytes + incomingBytes > limitMb * BYTES_PER_MB) {
       throw new BadRequestException(
         `Storage limit reached (${Number((limitMb / MB_PER_GB).toFixed(3))} GB). Delete photos or contact the admin to raise your limit.`,
       );

@@ -49,6 +49,14 @@ export class PhotoController {
     return await this.photoService.presignBatch(user, eventId, dto);
   }
 
+  @Get('storage')
+  async getStorage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('eventId') eventId: string,
+  ) {
+    return await this.photoService.getStorage(user, eventId);
+  }
+
   @Get()
   @UsePipes(new ValidationPipe({ transform: true }))
   async listPhotos(

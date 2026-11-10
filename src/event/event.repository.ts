@@ -232,10 +232,25 @@ export class EventRepository {
       this.prisma.event.count({ where }),
     ]);
 
+    // Same rule as StorageLimitRepository.getUsedBytesForEvent: confirmed, non-deleted photos.
+    const usage = await this.prisma.photo.groupBy({
+      by: ['eventId'],
+      where: {
+        eventId: { in: items.map((e) => e.id) },
+        status: 'UPLOADED',
+        deletedAt: null,
+      },
+      _sum: { sizeBytes: true },
+    });
+    const usedByEvent = new Map(
+      usage.map((u) => [u.eventId, u._sum.sizeBytes ?? 0]),
+    );
+
     return {
-      items: items.map((event) =>
-        toEventResponse(event, this.publicStorageService),
-      ),
+      items: items.map((event) => ({
+        ...toEventResponse(event, this.publicStorageService),
+        usedBytes: usedByEvent.get(event.id) ?? 0,
+      })),
       totalItemCount,
     };
   }

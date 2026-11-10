@@ -25,6 +25,24 @@ function build(
 }
 
 describe('StorageLimitService', () => {
+  describe('getUsage', () => {
+    it('returns used bytes and limit, unlimited as null', async () => {
+      const { service } = build({
+        getUsedBytesByPhotographer: jest
+          .fn()
+          .mockResolvedValue(new Map([['p1', 3 * MB]])),
+      });
+      await expect(service.getUsage('p1')).resolves.toEqual({
+        usedBytes: 3 * MB,
+        limitMb: null,
+      });
+      await expect(service.getUsage('p2')).resolves.toEqual({
+        usedBytes: 0,
+        limitMb: null,
+      });
+    });
+  });
+
   describe('assertWithinLimit', () => {
     it('allows anything when no limit is assigned', async () => {
       const { service } = build();

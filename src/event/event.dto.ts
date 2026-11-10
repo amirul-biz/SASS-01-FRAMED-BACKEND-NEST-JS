@@ -209,6 +209,9 @@ export class EventResponseDto {
   @IsArray()
   @IsString({ each: true })
   pricingBundleIds!: string[];
+
+  // Set only by the "my events" list.
+  @ApiPropertyOptional() @IsInt() @IsOptional() usedBytes?: number;
 }
 
 export class PaginatedEventListResponseDto {

@@ -112,6 +112,14 @@ export class StorageLimitRepository {
     return profile?.storageLimit?.limitMb ?? null;
   }
 
+  async getUsedBytesForEvent(eventId: string): Promise<number> {
+    const agg = await this.prisma.photo.aggregate({
+      where: { eventId, status: 'UPLOADED', deletedAt: null },
+      _sum: { sizeBytes: true },
+    });
+    return agg._sum.sizeBytes ?? 0;
+  }
+
   // Same rule as the studio dashboard: confirmed photos only, soft-deleted events still count
   // (their files still occupy storage). PENDING rows are ignored so failed uploads don't eat quota.
   async getUsedBytesByPhotographer(

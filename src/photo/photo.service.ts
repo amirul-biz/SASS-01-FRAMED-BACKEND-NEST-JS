@@ -47,6 +47,26 @@ export class PhotoService {
     private readonly storageLimitService: StorageLimitService,
   ) {}
 
+  async getStorage(
+    user: AuthenticatedUser,
+    eventId: string,
+  ): Promise<{
+    eventUsedBytes: number;
+    accountUsedBytes: number;
+    limitMb: number | null;
+  }> {
+    const event = await this.eventService.getMyEvent(user, eventId);
+    const [eventUsedBytes, usage] = await Promise.all([
+      this.storageLimitService.getEventUsedBytes(eventId),
+      this.storageLimitService.getUsage(event.photographerId),
+    ]);
+    return {
+      eventUsedBytes,
+      accountUsedBytes: usage.usedBytes,
+      limitMb: usage.limitMb,
+    };
+  }
+
   async presignBatch(
     user: AuthenticatedUser,
     eventId: string,

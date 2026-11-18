@@ -64,24 +64,25 @@ model UserPlatform {
 }
 
 model PhotographerProfile {
-  id              String       @id @default(uuid())
-  userPlatformId  String       @unique @map("user_platform_id")
-  userPlatform    UserPlatform @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
+  id              String        @id @default(uuid())
+  userPlatformId  String        @unique @map("user_platform_id")
+  userPlatform    UserPlatform  @relation(fields: [userPlatformId], references: [id], onDelete: Cascade)
   name            String
   bio             String?
-  companyName     String?      @map("company_name")
+  companyName     String?       @map("company_name")
   phone           String?
-  contactNo       String?      @map("contact_no")
-  nickname        String?      @unique
-  profileImageKey String?      @map("profile_image_key")
-  bannerKey       String?      @map("banner_key")
+  contactNo       String?       @map("contact_no")
+  nickname        String?       @unique
+  profileImageKey String?       @map("profile_image_key")
+  bannerKey       String?       @map("banner_key")
   // Null = unlimited storage.
-  storageLimitId  String?      @map("storage_limit_id")
+  storageLimitId  String?       @map("storage_limit_id")
   storageLimit    StorageLimit? @relation(fields: [storageLimitId], references: [id], onDelete: Restrict)
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  events Event[]
+  events               Event[]
+  commissionStatements CommissionStatement[]
 
   @@index([storageLimitId], map: "idx_photographer_profiles_storage_limit")
   @@map("photographer_profiles")
@@ -788,4 +789,48 @@ model CommissionChargeAmountPerUnit {
   createdAt                DateTime         @default(now()) @map("created_at")
 
   @@map("commission_charge_amount_per_units")
+}
+
+enum CommissionStatementStatus {
+  UNPAID
+  PAID
+
+  @@map("commission_statement_status")
+}
+
+// One row per photographer per month (period = first day of the month in Malaysia time). Created
+// lazily on first attachment / status change. The owed amount is computed live from
+// commission_charges until an admin marks it PAID, which freezes it into amountPaid.
+model CommissionStatement {
+  id             String                    @id @default(uuid())
+  photographerId String                    @map("photographer_id")
+  photographer   PhotographerProfile       @relation(fields: [photographerId], references: [id], onDelete: Restrict)
+  period         DateTime                  @db.Date
+  status         CommissionStatementStatus @default(UNPAID)
+  amountPaid     Decimal?                  @map("amount_paid") @db.Decimal(10, 2)
+  paidAt         DateTime?                 @map("paid_at")
+  // Audit only, intentionally not a foreign key.
+  markedByUserId String?                   @map("marked_by_user_id")
+  notes          String?
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
+
+  attachments CommissionStatementAttachment[]
+
+  @@unique([photographerId, period], map: "uq_commission_statements_photographer_period")
+  @@map("commission_statements")
+}
+
+model CommissionStatementAttachment {
+  id             String              @id @default(uuid())
+  statementId    String              @map("statement_id")
+  statement      CommissionStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  key            String
+  fileName       String              @map("file_name")
+  mimeType       String              @map("mime_type")
+  uploadedByRole UserRole            @map("uploaded_by_role")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  @@index([statementId], map: "idx_commission_statement_attachments_statement")
+  @@map("commission_statement_attachments")
 }

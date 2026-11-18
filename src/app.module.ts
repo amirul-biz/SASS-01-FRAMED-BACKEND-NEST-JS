@@ -23,6 +23,7 @@ import { CashOrderPaymentModule } from './merchant-order-payment/cash-order-paym
 import { CommissionModule } from './commission/commission-config/commission.module';
 import { SystemPaymentPlatformModule } from './system-payment-platform/system-payment-platform.module';
 import { StorageLimitModule } from './storage-limit/storage-limit.module';
+import { CommissionStatementModule } from './commission/commission-statement/commission-statement.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { StorageLimitModule } from './storage-limit/storage-limit.module';
     CommissionModule,
     SystemPaymentPlatformModule,
     StorageLimitModule,
+    CommissionStatementModule,
   ],
   controllers: [AppController],
   providers: [AppService],

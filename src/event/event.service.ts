@@ -175,7 +175,7 @@ export class EventService {
     return {
       ...rest,
       albumCoverPhotoUrls: albumCoverPhotoKeys.map((key) =>
-        this.publicStorageService.buildPublicUrl(key),
+        this.publicStorageService.buildPreviewUrl(key),
       ),
     };
   }

@@ -297,7 +297,7 @@ export class OrderService {
         photoName: item.photo.originalName,
         photoUrl: isOriginal
           ? this.privateStorageService.buildPublicUrl(item.photo.key)
-          : this.publicStorageService.buildPublicUrl(item.photo.key),
+          : this.publicStorageService.buildPreviewUrl(item.photo.key),
         formatLabel: item.formatLabel,
         price: Number(item.price),
       })),

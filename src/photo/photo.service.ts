@@ -231,7 +231,7 @@ export class PhotoService {
       items: items.map((photo) => ({
         id: photo.id,
         originalName: photo.originalName,
-        url: this.publicStorageService.buildPublicUrl(photo.key),
+        url: this.publicStorageService.buildPreviewUrl(photo.key),
         width: photo.width,
         height: photo.height,
         capturedAt: photo.capturedAt,

@@ -238,6 +238,7 @@ export class PhotographerRepository {
     photographerId: string,
   ): Promise<PhotographerDashboardStats> {
     const ownEvent = { photographerId };
+    const ownLiveEvent = { photographerId, deletedAt: null };
     const paidOrder = {
       event: ownEvent,
       status: { in: PAID_ORDER_STATUSES },
@@ -267,8 +268,15 @@ export class PhotographerRepository {
       this.prisma.event.count({
         where: { ...ownEvent, deletedAt: { not: null } },
       }),
+      // Storage/photo usage counts live events only — a soft-deleted event is hidden from
+      // the photographer, so its bytes must not show up as their usage (and must not block
+      // their uploads via assertWithinLimit). R2 objects are reclaimed by the 90-day janitor.
       this.prisma.photo.aggregate({
-        where: { event: ownEvent, status: 'UPLOADED', deletedAt: null },
+        where: {
+          event: ownLiveEvent,
+          status: 'UPLOADED',
+          deletedAt: null,
+        },
         _count: { _all: true },
         _sum: { sizeBytes: true },
       }),

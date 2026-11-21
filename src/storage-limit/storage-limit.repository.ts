@@ -112,23 +112,36 @@ export class StorageLimitRepository {
     return profile?.storageLimit?.limitMb ?? null;
   }
 
-  // Same set of photos as the used-bytes rule: confirmed, non-deleted, soft-deleted events included.
+  // Same set as the used-bytes rule: confirmed, non-deleted photos on non-deleted events.
   async getUploadedPhotoCount(photographerId: string): Promise<number> {
     return await this.prisma.photo.count({
-      where: { status: 'UPLOADED', deletedAt: null, event: { photographerId } },
+      where: {
+        status: 'UPLOADED',
+        deletedAt: null,
+        event: { photographerId, deletedAt: null },
+      },
     });
   }
 
   async getUsedBytesForEvent(eventId: string): Promise<number> {
+    // Scoped to a live event; a deleted event reports 0 so the upload modal can't show
+    // phantom usage for gallery that no longer exists.
     const agg = await this.prisma.photo.aggregate({
-      where: { eventId, status: 'UPLOADED', deletedAt: null },
+      where: {
+        eventId,
+        status: 'UPLOADED',
+        deletedAt: null,
+        event: { deletedAt: null },
+      },
       _sum: { sizeBytes: true },
     });
     return agg._sum.sizeBytes ?? 0;
   }
 
-  // Same rule as the studio dashboard: confirmed photos only, soft-deleted events still count
-  // (their files still occupy storage). PENDING rows are ignored so failed uploads don't eat quota.
+  // Soft-deleted events must NOT count against quota: their event row is hidden from the
+  // photographer, so the bytes are un-deletable from their side. The R2 objects are still
+  // billed for 90 days and are reclaimed by the janitor job, not by this number — this
+  // figure is "what the photographer is responsible for right now".
   async getUsedBytesByPhotographer(
     photographerIds: string[],
   ): Promise<Map<string, number>> {
@@ -141,6 +154,7 @@ export class StorageLimitRepository {
       JOIN events e ON e.id = p.event_id
       WHERE p.status = 'UPLOADED'
         AND p.deleted_at IS NULL
+        AND e.deleted_at IS NULL
         AND e.photographer_id = ANY(${photographerIds})
       GROUP BY e.photographer_id`;
     return new Map(rows.map((r) => [r.photographer_id, Number(r.used_bytes)]));

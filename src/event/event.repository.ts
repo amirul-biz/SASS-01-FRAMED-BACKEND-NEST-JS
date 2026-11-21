@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/config/database/prisma.service';
-import { PublicStorageService } from '../config/storage/public-storage.service';
+import { PrivateStorageService } from '../config/storage/private-storage.service';
 import type { Event, Prisma } from '../../generated/prisma/client';
 import { VoucherDiscountType } from '../../generated/prisma/client';
 import type {
@@ -88,7 +88,7 @@ type EventWithBundlesRow = Event &
 
 function toLatestPublishedEvent(
   event: PublishedEventCardRow,
-  publicStorageService: PublicStorageService,
+  privateStorageService: PrivateStorageService,
 ): LatestPublishedEvent {
   return {
     id: event.id,
@@ -96,7 +96,7 @@ function toLatestPublishedEvent(
     category: event.category,
     location: event.location,
     coverPhotoUrl: event.coverPhotoKey
-      ? publicStorageService.buildPublicUrl(event.coverPhotoKey)
+      ? privateStorageService.buildPublicUrl(event.coverPhotoKey)
       : null,
     eventStartDate: event.eventStartDate,
     eventEndDate: event.eventEndDate,
@@ -115,10 +115,10 @@ type PublishedEventDetailRaw = Omit<
 
 function toPublishedEventDetail(
   event: PublishedEventDetailRow,
-  publicStorageService: PublicStorageService,
+  privateStorageService: PrivateStorageService,
 ): PublishedEventDetailRaw {
   return {
-    ...toLatestPublishedEvent(event, publicStorageService),
+    ...toLatestPublishedEvent(event, privateStorageService),
     photographerPhone: event.photographerProfile.phone,
     photographerContactNo: event.photographerProfile.contactNo,
     description: event.description,
@@ -146,7 +146,7 @@ function toPublishedEventDetail(
 
 function toEventResponse(
   event: EventWithBundlesRow,
-  publicStorageService: PublicStorageService,
+  privateStorageService: PrivateStorageService,
 ): EventResponseDto {
   return {
     id: event.id,
@@ -162,7 +162,7 @@ function toEventResponse(
     publishUntil: event.publishUntil,
     deletedAt: event.deletedAt,
     coverPhotoUrl: event.coverPhotoKey
-      ? publicStorageService.buildPublicUrl(event.coverPhotoKey)
+      ? privateStorageService.buildPublicUrl(event.coverPhotoKey)
       : null,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
@@ -174,7 +174,7 @@ function toEventResponse(
 export class EventRepository {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly publicStorageService: PublicStorageService,
+    private readonly privateStorageService: PrivateStorageService,
   ) {}
 
   async create(
@@ -202,7 +202,7 @@ export class EventRepository {
       },
       include: EVENT_WITH_BUNDLES_INCLUDE,
     });
-    return toEventResponse(event, this.publicStorageService);
+    return toEventResponse(event, this.privateStorageService);
   }
 
   async getManyByPhotographer(
@@ -247,7 +247,7 @@ export class EventRepository {
 
     return {
       items: items.map((event) => ({
-        ...toEventResponse(event, this.publicStorageService),
+        ...toEventResponse(event, this.privateStorageService),
         usedBytes: usageByEvent.get(event.id)?._sum.sizeBytes ?? 0,
         photoCount: usageByEvent.get(event.id)?._count._all ?? 0,
       })),
@@ -263,7 +263,7 @@ export class EventRepository {
       where: { id, photographerId, deletedAt: null },
       include: EVENT_WITH_BUNDLES_INCLUDE,
     });
-    return event ? toEventResponse(event, this.publicStorageService) : null;
+    return event ? toEventResponse(event, this.privateStorageService) : null;
   }
 
   async countOwnedBundles(
@@ -296,7 +296,7 @@ export class EventRepository {
           include: EVENT_WITH_BUNDLES_INCLUDE,
         }),
       ]);
-      return toEventResponse(event, this.publicStorageService);
+      return toEventResponse(event, this.privateStorageService);
     }
 
     const event = await this.prisma.event.update({
@@ -304,7 +304,7 @@ export class EventRepository {
       data: this.buildUpdateData(data),
       include: EVENT_WITH_BUNDLES_INCLUDE,
     });
-    return toEventResponse(event, this.publicStorageService);
+    return toEventResponse(event, this.privateStorageService);
   }
 
   private buildUpdateData(
@@ -340,7 +340,7 @@ export class EventRepository {
       select: PUBLISHED_EVENT_DETAIL_SELECT,
     });
     return event
-      ? toPublishedEventDetail(event, this.publicStorageService)
+      ? toPublishedEventDetail(event, this.privateStorageService)
       : null;
   }
 
@@ -378,7 +378,7 @@ export class EventRepository {
     });
 
     return events.map((event) =>
-      toLatestPublishedEvent(event, this.publicStorageService),
+      toLatestPublishedEvent(event, this.privateStorageService),
     );
   }
 
@@ -419,7 +419,7 @@ export class EventRepository {
 
     return {
       items: events.map((event) =>
-        toLatestPublishedEvent(event, this.publicStorageService),
+        toLatestPublishedEvent(event, this.privateStorageService),
       ),
       totalItemCount,
     };

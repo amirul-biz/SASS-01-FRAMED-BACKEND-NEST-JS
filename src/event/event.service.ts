@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { sanitizeFileName } from 'src/common/utils/sanitize-file-name';
+import { PrivateStorageService } from '../config/storage/private-storage.service';
 import { PublicStorageService } from '../config/storage/public-storage.service';
 import { PhotographerService } from '../photographer/photographer.service';
 import { StorageLimitService } from '../storage-limit/storage-limit.service';
@@ -33,6 +34,7 @@ export class EventService {
     private readonly eventRepository: EventRepository,
     private readonly photographerService: PhotographerService,
     private readonly publicStorageService: PublicStorageService,
+    private readonly privateStorageService: PrivateStorageService,
     private readonly storageLimitService: StorageLimitService,
   ) {}
 
@@ -151,11 +153,13 @@ export class EventService {
     const key = `events/${photographerId}/${randomUUID()}-${sanitizedFileName}`;
     const expiresIn = 300;
 
-    const uploadUrl = await this.publicStorageService.getPresignedUploadUrl({
+    // Covers need no watermark, so they live in the private bucket and are served direct from it
+    // (album/gallery photos go through the Bunny CDN instead).
+    const uploadUrl = await this.privateStorageService.getPresignedUploadUrl({
       key,
       mimeType: dto.mimeType,
     });
-    const publicUrl = this.publicStorageService.buildPublicUrl(key);
+    const publicUrl = this.privateStorageService.buildPublicUrl(key);
 
     return { uploadUrl, publicUrl, key, expiresIn };
   }

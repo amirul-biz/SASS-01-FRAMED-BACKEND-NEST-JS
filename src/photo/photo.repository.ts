@@ -66,12 +66,12 @@ export class PhotoRepository {
     const [items, totalItemCount] = await this.prisma.$transaction([
       this.prisma.photo.findMany({
         where,
-        // id is a tiebreaker: captured_at/uploaded_at are neither unique nor always distinct
-        // (burst shots share a second, PENDING rows have no uploaded_at), so without it offset
-        // pagination can duplicate or skip rows across pages when ties straddle a page boundary.
+        // File name first (upload time/EXIF are unreliable after broken uploads), capturedAt breaks
+        // name ties; id last since names aren't unique, so offset pagination can't dup/skip rows.
+        // ponytail: no index on originalName, add (eventId, status, originalName, id) if paging slows.
         orderBy: [
+          { originalName: 'asc' },
           { capturedAt: { sort: 'asc', nulls: 'last' } },
-          { uploadedAt: 'asc' },
           { id: 'asc' },
         ],
         skip,
@@ -114,8 +114,8 @@ export class PhotoRepository {
       this.prisma.photo.findMany({
         where,
         orderBy: [
+          { originalName: 'asc' },
           { capturedAt: { sort: 'asc', nulls: 'last' } },
-          { uploadedAt: 'asc' },
           { id: 'asc' },
         ],
         skip,
